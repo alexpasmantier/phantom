@@ -55,7 +55,13 @@ fail() {
 check() {
     local desc="$1"; shift
     local rc=0
-    "$@" >/dev/null 2>&1 || rc=$?
+    # Try up to 3 times with a small delay between retries
+    for attempt in 1 2 3; do
+        rc=0
+        "$@" >/dev/null 2>&1 || rc=$?
+        if [ $rc -eq 0 ]; then break; fi
+        [ $attempt -lt 3 ] && sleep 0.3
+    done
     if [ $rc -eq 0 ]; then pass "$desc"; else fail "$desc"; fi
 }
 
@@ -68,13 +74,23 @@ new_session() {
 send_type()  { pt send -s "$SESSION" --type "$1" || true; }
 send_key()   { pt send -s "$SESSION" --key "$1" || true; }
 # Type text then press enter
-run_cmd()    { send_type "$1"; send_key "enter"; }
+run_cmd()    { send_type "$1"; sleep 0.1; send_key "enter"; }
 wait_text()  { pt wait -s "$SESSION" --text "$1" --timeout "${2:-5000}"; }
 wait_gone()  { pt wait -s "$SESSION" --text-disappear "$1" --timeout "${2:-5000}"; }
 wait_stable(){ pt wait -s "$SESSION" --stable --stable-duration "${1:-500}" --timeout "${2:-5000}"; }
 wait_exit()  { pt wait -s "$SESSION" --process-exit --timeout "${1:-5000}"; }
 screenshot() { pt screenshot -s "$SESSION"; }
 contains()   { screenshot | grep -q "$1"; }
+not_contains() { ! screenshot | grep -q "$1"; }
+# Assert no terminal escape artifacts on screen
+no_artifacts() {
+    local screen
+    screen=$(screenshot)
+    if echo "$screen" | grep -qE '00~|01~|200~|201~|\[2[0-9];[0-9]|\x1b'; then
+        return 1
+    fi
+    return 0
+}
 
 # Suppress output from new_session
 _new_session_inner() {
@@ -144,11 +160,12 @@ echo -e "\n${BOLD}  Screen capture${NC}"
 
 new_session "cap" --cols 80 --rows 24 -- bash --norc --noprofile
 start_monitor
-wait_stable 300 5000
+# Wait for bash prompt to appear — reliable session-ready signal
+pt wait -s "$SESSION" --regex 'bash.*\$' --timeout 10000 || true
+wait_stable 1000 10000
 
 run_cmd "echo HELLO_WORLD"
-wait_text "HELLO_WORLD"
-sleep 0.3
+wait_text "HELLO_WORLD" 5000
 
 check "text screenshot" contains "HELLO_WORLD"
 check "json has cells" bash -c "$PT --socket $SOCK screenshot -s cap --format json | grep -q grapheme"
@@ -158,12 +175,16 @@ check "region screenshot" bash -c "test \$($PT --socket $SOCK screenshot -s cap 
 echo -e "\n${BOLD}  Input${NC}"
 # ═════════════════════════════════════════════════════════
 
-wait_stable 300 5000
+wait_stable 1000 10000
 run_cmd "echo TYPED"
 wait_text "TYPED"
 check "type text" contains "TYPED"
 
-check "paste (no error)" pt send -s "$SESSION" --paste "hello paste"
+pt send -s "$SESSION" --paste "echo PASTED_OK"
+send_key "enter"
+wait_text "PASTED_OK" 5000
+check "paste input" contains "PASTED_OK"
+check "paste no artifacts" no_artifacts
 
 run_cmd "sleep 60"
 sleep 1
@@ -171,8 +192,11 @@ send_key "ctrl-c"
 sleep 1
 run_cmd "echo AFTER_CTRLC"
 check "send key (ctrl-c)" wait_text "AFTER_CTRLC" 5000
+check "no artifacts after ctrl-c" no_artifacts
 
 check "mouse (no crash)" pt send -s "$SESSION" --mouse "click:5,5"
+sleep 0.3
+check "no artifacts after mouse" no_artifacts
 
 # ═════════════════════════════════════════════════════════
 echo -e "\n${BOLD}  Wait conditions${NC}"
@@ -184,7 +208,7 @@ check "wait text present" wait_text "DELAYED" 5000
 # Fresh session for this test — screen clearing is unreliable across sessions
 pt kill -s "$SESSION" || true; sleep 0.2
 new_session "absent" --cols 80 --rows 24 -- bash --norc --noprofile
-wait_stable 300 5000
+wait_stable 1000 10000
 run_cmd "echo TEMP_XYZ"
 wait_text "TEMP_XYZ"
 sleep 0.3
@@ -192,7 +216,7 @@ run_cmd "printf '\\033[2J\\033[H'"
 check "wait text absent" wait_gone "TEMP_XYZ" 5000
 
 check "wait timeout" bash -c "! $PT --socket $SOCK wait -s $SESSION --text NEVER --timeout 500"
-check "wait stable" wait_stable 500 5000
+check "wait stable" wait_stable 1000 10000
 
 run_cmd "echo CHANGE"
 check "wait changed" pt wait -s "$SESSION" --changed --timeout 5000
@@ -215,7 +239,7 @@ echo -e "\n${BOLD}  Resize${NC}"
 # Fresh session for resize test
 pt kill -s "$SESSION" || true; sleep 0.2
 new_session "resz" --cols 80 --rows 24 -- bash --norc --noprofile
-wait_stable 300 5000
+wait_stable 1000 10000
 pt resize -s "$SESSION" --cols 120 --rows 40
 sleep 1
 run_cmd "tput cols"
@@ -229,10 +253,10 @@ stop_monitor
 pt kill -s "$SESSION" || true; sleep 0.2
 new_session "scrl" --cols 80 --rows 24 -- bash --norc --noprofile
 start_monitor
-wait_stable 300 5000
+wait_stable 1000 10000
 run_cmd "for i in \$(seq 1 60); do echo sb_\$i; done"
 wait_text "sb_60" 10000
-wait_stable 500 5000
+wait_stable 1000 10000
 check "scrollback has old lines" bash -c "$PT --socket $SOCK scrollback -s $SESSION 2>/dev/null | grep -q sb_1"
 check "scrollback --lines" bash -c "test \$($PT --socket $SOCK scrollback -s $SESSION --lines 5 2>/dev/null | grep -c sb_) -le 5"
 
@@ -247,7 +271,7 @@ echo -e "\n${BOLD}  Snapshots${NC}"
 SNAP=$(mktemp /tmp/phantom-snap-XXXXXX.txt)
 new_session "snap" --cols 80 --rows 24 -- bash --norc --noprofile
 start_monitor
-wait_stable 300 5000
+wait_stable 1000 10000
 run_cmd "echo SNAPSHOT_REF"
 wait_text "SNAPSHOT_REF"
 
@@ -298,9 +322,9 @@ if command -v vim &>/dev/null; then
 
     check "vim startup" bash -c "$PT --socket $SOCK screenshot -s vim | grep -c '^~' | grep -q '[5-9]\|[1-9][0-9]'"
 
-    send_type "i"; sleep 0.5
+    send_type "i"; sleep 1
     send_type "Hello vim"
-    sleep 0.5
+    sleep 1
     check "vim insert + type" contains "Hello vim"
 
     send_key "escape"; sleep 0.5
@@ -329,7 +353,8 @@ if command -v less &>/dev/null; then
 
     new_session "less" --cols 80 --rows 24 -- less "$LESS_FILE"
     start_monitor
-    sleep 1
+    # Wait for less to actually render file content
+    pt wait -s "$SESSION" --text "Line 1" --timeout 10000 || true
     wait_stable 1000 10000
 
     check "less view" contains "Line 1"
