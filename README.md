@@ -68,10 +68,6 @@ cargo build --workspace
 cargo test -p phantom-daemon -- --test-threads=1
 ```
 
-## Architecture
-
-Daemon + stateless CLI over Unix sockets. The daemon manages PTY sessions with libghostty-vt on a dedicated thread (`!Send + !Sync` constraint). Auto-starts on first use.
-
 ## License
 
 MIT
