@@ -4,10 +4,12 @@ use std::time::Duration;
 
 use crossbeam_channel::Sender;
 use mio::Waker;
+#[allow(unused_imports)]
 use phantom_core::exit_codes;
 use phantom_core::protocol::{Response, ResponseData};
 use phantom_core::types::{
-    CursorInfo, InputAction, ScreenContent, ScreenFormat, SessionInfo, WaitCondition,
+    CellData, CursorInfo, InputAction, ScreenContent, ScreenFormat, SessionInfo, SessionStatus,
+    WaitCondition,
 };
 use phantom_daemon::engine::{Engine, EngineCommand};
 
@@ -43,6 +45,14 @@ impl TestHarness {
             waker,
             engine_thread: Some(engine_thread),
         }
+    }
+
+    /// Send a command to the engine and wait for its response (public for custom commands).
+    pub fn send_command_raw(
+        &self,
+        make_cmd: impl FnOnce(Sender<Response>) -> EngineCommand,
+    ) -> Response {
+        self.send_command(make_cmd)
     }
 
     /// Send a command to the engine and wait for its response.
@@ -280,6 +290,100 @@ impl TestHarness {
             } => text,
             _ => panic!("get_scrollback failed: {resp:?}"),
         }
+    }
+
+    pub fn screenshot_region(
+        &self,
+        session: &str,
+        top: u16,
+        left: u16,
+        bottom: u16,
+        right: u16,
+    ) -> ScreenContent {
+        let resp = self.send_command(|reply| EngineCommand::Screenshot {
+            session: session.to_string(),
+            format: ScreenFormat::Text,
+            region: Some((top, left, bottom, right)),
+            reply,
+        });
+        match resp {
+            Response::Ok {
+                data: Some(ResponseData::Screen(screen)),
+            } => screen,
+            _ => panic!("screenshot_region failed: {resp:?}"),
+        }
+    }
+
+    pub fn get_output(&self, session: &str) -> String {
+        let resp = self.send_command(|reply| EngineCommand::GetOutput {
+            session: session.to_string(),
+            reply,
+        });
+        match resp {
+            Response::Ok {
+                data: Some(ResponseData::Text(text)),
+            } => text,
+            _ => panic!("get_output failed: {resp:?}"),
+        }
+    }
+
+    pub fn get_cell(&self, session: &str, x: u16, y: u16) -> CellData {
+        let resp = self.send_command(|reply| EngineCommand::GetCell {
+            session: session.to_string(),
+            x,
+            y,
+            reply,
+        });
+        match resp {
+            Response::Ok {
+                data: Some(ResponseData::Cell(cell)),
+            } => cell,
+            _ => panic!("get_cell failed: {resp:?}"),
+        }
+    }
+
+    pub fn wait_for_changed(&self, session: &str, timeout_ms: u64) -> Response {
+        self.send_wait_command(
+            |reply| EngineCommand::Wait {
+                session: session.to_string(),
+                conditions: vec![WaitCondition::ScreenChanged],
+                timeout_ms,
+                poll_ms: 50,
+                reply,
+            },
+            Duration::from_millis(timeout_ms),
+        )
+    }
+
+    pub fn wait_for_regex(&self, session: &str, pattern: &str, timeout_ms: u64) -> Response {
+        self.send_wait_command(
+            |reply| EngineCommand::Wait {
+                session: session.to_string(),
+                conditions: vec![WaitCondition::Regex(regex::Regex::new(pattern).unwrap())],
+                timeout_ms,
+                poll_ms: 50,
+                reply,
+            },
+            Duration::from_millis(timeout_ms),
+        )
+    }
+
+    pub fn wait_with_conditions(
+        &self,
+        session: &str,
+        conditions: Vec<WaitCondition>,
+        timeout_ms: u64,
+    ) -> Response {
+        self.send_wait_command(
+            |reply| EngineCommand::Wait {
+                session: session.to_string(),
+                conditions,
+                timeout_ms,
+                poll_ms: 50,
+                reply,
+            },
+            Duration::from_millis(timeout_ms),
+        )
     }
 
     pub fn kill_session(&self, session: &str) -> Response {

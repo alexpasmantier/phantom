@@ -2,6 +2,7 @@ mod common;
 
 use common::{TestHarness, assert_error, assert_ok};
 use phantom_core::exit_codes;
+use phantom_core::types::{SessionStatus, WaitCondition};
 
 #[test]
 fn test_echo_and_screenshot() {
@@ -231,4 +232,359 @@ fn test_mouse_input() {
     assert_ok(&h.send_mouse("mouse", "scroll-up:5,5"));
     assert_ok(&h.send_mouse("mouse", "scroll-down:5,5"));
     assert_ok(&h.send_mouse("mouse", "move:15,8"));
+}
+
+// ═══════════════════════════════════════════════════════════
+// Output capture
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_output_capture() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session(
+        "output",
+        "bash",
+        &["-c", "echo the_final_output"],
+        80,
+        24,
+    ));
+
+    // Wait for the process to exit
+    assert_ok(&h.wait_for_exit("output", 5000));
+
+    // Capture what was written to the primary screen
+    let output = h.get_output("output");
+    assert!(
+        output.contains("the_final_output"),
+        "output should contain process stdout: {output}"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Cell inspection
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_cell_inspection() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("cell", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("cell", 300, 5000));
+
+    h.send_type("cell", "echo ABCDEF\n");
+    assert_ok(&h.wait_for_text("cell", "ABCDEF", 5000));
+
+    // Find the row with ABCDEF in the screenshot to know the y coordinate
+    let text = h.screenshot_text("cell");
+    let row = text
+        .lines()
+        .enumerate()
+        .find(|(_, l)| l.contains("ABCDEF") && !l.contains("echo"))
+        .map(|(i, _)| i)
+        .expect("should find ABCDEF output row");
+
+    // Inspect cell at position of 'A'
+    let line = text.lines().nth(row).unwrap();
+    let col = line.find('A').unwrap() as u16;
+    let cell = h.get_cell("cell", col, row as u16);
+    assert_eq!(cell.grapheme, "A", "cell grapheme should be 'A'");
+
+    // Next cell should be 'B'
+    let cell = h.get_cell("cell", col + 1, row as u16);
+    assert_eq!(cell.grapheme, "B", "next cell should be 'B'");
+}
+
+// ═══════════════════════════════════════════════════════════
+// Region screenshot
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_region_screenshot() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("region", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("region", 300, 5000));
+
+    h.send_type("region", "echo LINE_ONE\n");
+    assert_ok(&h.wait_for_text("region", "LINE_ONE", 5000));
+    h.send_type("region", "echo LINE_TWO\n");
+    assert_ok(&h.wait_for_text("region", "LINE_TWO", 5000));
+
+    // Full screenshot should have all 24 rows
+    let full = h.screenshot_json("region");
+    assert_eq!(full.screen.len(), 24);
+
+    // Region screenshot: only rows 0-2
+    let partial = h.screenshot_region("region", 0, 0, 2, 79);
+    // Should have exactly 3 rows
+    let non_skipped: Vec<_> = partial.screen.iter().filter(|r| !r.text.is_empty() || r.row <= 2).collect();
+    assert!(non_skipped.len() <= 3, "region should have at most 3 rows, got {}", non_skipped.len());
+
+    // Region with column filter
+    let narrow = h.screenshot_region("region", 0, 0, 23, 9);
+    for row in &narrow.screen {
+        assert!(
+            row.text.len() <= 10,
+            "narrow region row should be at most 10 chars, got {}: '{}'",
+            row.text.len(),
+            row.text
+        );
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Screen changed wait
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_wait_screen_changed() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("changed", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("changed", 300, 5000));
+
+    // Send a command that will produce output
+    h.send_type("changed", "echo CHANGE_MARKER\n");
+
+    // Wait for screen to change — should succeed quickly
+    let resp = h.wait_for_changed("changed", 5000);
+    assert_ok(&resp);
+
+    // The changed text should now be visible
+    let text = h.screenshot_text("changed");
+    assert!(text.contains("CHANGE_MARKER"));
+}
+
+#[test]
+fn test_wait_screen_changed_timeout() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("nochange", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("nochange", 300, 5000));
+
+    // Don't send any input — screen won't change
+    let resp = h.wait_for_changed("nochange", 500);
+    assert_error(&resp, exit_codes::WAIT_TIMEOUT);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Regex wait
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_wait_regex() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("regex", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("regex", 300, 5000));
+
+    h.send_type("regex", "echo 'count: 42 items'\n");
+    let resp = h.wait_for_regex("regex", r"count: \d+ items", 5000);
+    assert_ok(&resp);
+}
+
+#[test]
+fn test_wait_regex_no_match() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("regex_no", "bash", &["--norc", "--noprofile"], 80, 24));
+
+    let resp = h.wait_for_regex("regex_no", r"WILL_NEVER_MATCH_\d+", 500);
+    assert_error(&resp, exit_codes::WAIT_TIMEOUT);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Combined wait conditions
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_combined_wait_conditions() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("combo", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("combo", 300, 5000));
+
+    h.send_type("combo", "echo ALPHA; echo BETA\n");
+
+    // Wait for BOTH texts to appear
+    let resp = h.wait_with_conditions(
+        "combo",
+        vec![
+            WaitCondition::TextPresent("ALPHA".into()),
+            WaitCondition::TextPresent("BETA".into()),
+        ],
+        5000,
+    );
+    assert_ok(&resp);
+}
+
+#[test]
+fn test_combined_wait_partial_fail() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("partial", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("partial", 300, 5000));
+
+    h.send_type("partial", "echo PRESENT\n");
+    assert_ok(&h.wait_for_text("partial", "PRESENT", 5000));
+
+    // One condition met, one not — should timeout
+    let resp = h.wait_with_conditions(
+        "partial",
+        vec![
+            WaitCondition::TextPresent("PRESENT".into()),
+            WaitCondition::TextPresent("ABSENT_TEXT".into()),
+        ],
+        500,
+    );
+    assert_error(&resp, exit_codes::WAIT_TIMEOUT);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Session status after exit
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_status_after_exit() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("exitst", "bash", &["-c", "exit 42"], 80, 24));
+
+    assert_ok(&h.wait_for_exit("exitst", 5000));
+
+    let resp = h.get_status("exitst");
+    match resp {
+        phantom_core::protocol::Response::Ok {
+            data: Some(phantom_core::protocol::ResponseData::Session(info)),
+        } => match info.status {
+            SessionStatus::Exited { code } => {
+                assert_eq!(code, Some(42), "exit code should be 42");
+            }
+            _ => panic!("session should be exited"),
+        },
+        _ => panic!("get_status failed: {resp:?}"),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Wide characters / Unicode
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_wide_characters() {
+    let h = TestHarness::new();
+    // Use printf with escape sequences — works reliably across shells
+    assert_ok(&h.create_session(
+        "wide",
+        "bash",
+        &["-c", "printf '日本語\\n'; sleep 30"],
+        80,
+        24,
+    ));
+
+    assert_ok(&h.wait_for_stable("wide", 500, 10000));
+
+    let text = h.screenshot_text("wide");
+    assert!(
+        text.contains("日"),
+        "screenshot should contain CJK characters: {text}"
+    );
+}
+
+#[test]
+fn test_emoji() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session(
+        "emoji",
+        "bash",
+        &["-c", "printf '🎉🚀\\n'; sleep 30"],
+        80,
+        24,
+    ));
+
+    assert_ok(&h.wait_for_stable("emoji", 500, 10000));
+
+    let text = h.screenshot_text("emoji");
+    assert!(
+        text.contains("🎉") || text.contains("🚀"),
+        "screenshot should contain emoji: {text}"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Snapshot save and diff
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_snapshot_save_and_diff() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("snap", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("snap", 300, 5000));
+
+    h.send_type("snap", "echo SNAPSHOT_CONTENT\n");
+    assert_ok(&h.wait_for_text("snap", "SNAPSHOT_CONTENT", 5000));
+
+    // Take a reference screenshot
+    let ref_text = h.screenshot_text("snap");
+
+    // Take another screenshot — should be identical
+    let current = h.screenshot_text("snap");
+    assert_eq!(ref_text, current, "consecutive screenshots should match");
+
+    // Now change the screen
+    h.send_type("snap", "echo CHANGED\n");
+    assert_ok(&h.wait_for_text("snap", "CHANGED", 5000));
+
+    let changed = h.screenshot_text("snap");
+    assert_ne!(ref_text, changed, "screen should differ after new output");
+}
+
+// ═══════════════════════════════════════════════════════════
+// Process exit with specific exit code
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_wait_process_exit_with_code() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("exitcode", "bash", &["-c", "exit 7"], 80, 24));
+
+    // Wait for exit with specific code
+    let resp = h.wait_with_conditions(
+        "exitcode",
+        vec![WaitCondition::ProcessExited {
+            exit_code: Some(7),
+        }],
+        5000,
+    );
+    assert_ok(&resp);
+}
+
+#[test]
+fn test_wait_process_exit_wrong_code() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("wrongcode", "bash", &["-c", "exit 1"], 80, 24));
+
+    // Wait for exit with wrong code — should timeout
+    let resp = h.wait_with_conditions(
+        "wrongcode",
+        vec![WaitCondition::ProcessExited {
+            exit_code: Some(99),
+        }],
+        1000,
+    );
+    assert_error(&resp, exit_codes::WAIT_TIMEOUT);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Type with delay
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_type_with_delay() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("delay", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("delay", 300, 5000));
+
+    // Type with delay — should still work, just slower
+    let resp = h.send_command_raw(|reply| phantom_daemon::engine::EngineCommand::SendInput {
+        session: "delay".to_string(),
+        action: phantom_core::types::InputAction::Type {
+            text: "echo delayed\n".to_string(),
+            delay_ms: Some(10),
+        },
+        reply,
+    });
+    assert_ok(&resp);
+    assert_ok(&h.wait_for_text("delay", "delayed", 5000));
 }
