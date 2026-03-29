@@ -27,27 +27,6 @@ phantom monitor -s myapp
 phantom kill -s myapp
 ```
 
-## Commands
-
-```
-phantom run -s <name> -- <cmd> [args]     Spawn a TUI in a session
-phantom screenshot -s <name>              Capture screen (text or --format json)
-phantom send -s <name> --type "text"      Type characters
-phantom send -s <name> --key ctrl-c       Send key (ctrl-c, enter, escape, up, f1, etc.)
-phantom send -s <name> --paste "text"     Bracketed paste
-phantom send -s <name> --mouse click:x,y  Mouse event
-phantom wait -s <name> --text "pattern"   Wait for text (also: --regex, --stable, --process-exit)
-phantom cursor -s <name>                  Cursor position
-phantom scrollback -s <name>              Scrollback buffer
-phantom resize -s <name> --cols N --rows N
-phantom monitor -s <name>                 Live view (30fps)
-phantom status -s <name>
-phantom list
-phantom kill -s <name>
-```
-
-Output is human-readable on TTY, JSON when piped. Override with `--json` / `--human`.
-
 ## Exit Codes
 
 | Code | Meaning |
