@@ -27,17 +27,6 @@ phantom monitor -s myapp
 phantom kill -s myapp
 ```
 
-## Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Error |
-| 2 | Session not found |
-| 3 | Wait timeout |
-| 4 | Process exited |
-| 5 | Session name collision |
-
 ## Building
 
 Requires Rust nightly and [Zig](https://ziglang.org/) 0.15.x.
