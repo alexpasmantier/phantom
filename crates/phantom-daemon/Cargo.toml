@@ -1,0 +1,27 @@
+[package]
+name = "phantom-daemon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "phantom-daemon"
+path = "src/main.rs"
+
+[dependencies]
+phantom-core.workspace = true
+libghostty-vt = "0.1"
+clap.workspace = true
+nix.workspace = true
+mio.workspace = true
+crossbeam-channel.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+regex.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
