@@ -27,6 +27,12 @@ phantom monitor -s myapp
 phantom kill -s myapp
 ```
 
+## What can this be used for?
+
+- **AI agent tool use**: let an LLM-based agent interact with TUI applications (search, navigate, read screen contents, etc.)
+- **Integration testing**: write deterministic tests for TUI apps without needing a real terminal
+- **Automation**: script interactions with any terminal application that doesn't have a non-interactive mode
+
 ## Building
 
 Requires Rust nightly and [Zig](https://ziglang.org/) 0.15.x.
