@@ -135,6 +135,7 @@ impl TestHarness {
         self.send_command(|reply| EngineCommand::Screenshot {
             session: session.to_string(),
             format,
+            region: None,
             reply,
         })
     }

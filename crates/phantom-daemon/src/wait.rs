@@ -61,5 +61,11 @@ fn evaluate_one(session: &mut Session, condition: &WaitCondition) -> bool {
             },
             None => false,
         },
+        WaitCondition::ScreenChanged => {
+            // Screen changed = hash differs from what it was when the wait was registered.
+            // We use last_screen_hash which is set at registration time.
+            let hash = session.screen_hash();
+            hash != session.last_screen_hash
+        }
     }
 }

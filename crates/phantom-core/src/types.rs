@@ -90,6 +90,7 @@ pub enum WaitCondition {
     ProcessExited {
         exit_code: Option<i32>,
     },
+    ScreenChanged,
 }
 
 mod serde_regex {

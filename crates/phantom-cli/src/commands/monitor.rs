@@ -54,6 +54,7 @@ async fn run_loop(
             .send(&Request::Screenshot {
                 session: session.to_string(),
                 format: ScreenFormat::Text,
+                region: None,
             })
             .await
         {

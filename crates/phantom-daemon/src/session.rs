@@ -226,6 +226,56 @@ impl Session {
         Ok(lines)
     }
 
+    /// Get the process output — the primary screen content after process exit.
+    /// This captures what a TUI like fzf/tv writes to stdout after leaving
+    /// alternate screen mode.
+    pub fn get_output(&mut self) -> Result<String> {
+        // The output is whatever is on the primary screen, trimmed.
+        let text = self.compute_screen_text();
+        let trimmed: Vec<&str> = text
+            .lines()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .skip_while(|l| l.trim().is_empty())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        Ok(trimmed.join("\n"))
+    }
+
+    /// Get a single cell's data at (x, y) on the active screen.
+    pub fn get_cell(&self, x: u16, y: u16) -> Result<phantom_core::types::CellData> {
+        let coord: PointCoordinate = ffi::GhosttyPointCoordinate {
+            x,
+            y: y as u32,
+        }
+        .into();
+        let grid_ref = self.terminal.grid_ref(Point::Active(coord))?;
+        let style = grid_ref.style()?;
+        let mut buf = ['\0'; 8];
+        grid_ref.graphemes(&mut buf)?;
+        let grapheme: String = buf.iter().take_while(|&&c| c != '\0').collect();
+        let grapheme = if grapheme.is_empty() {
+            " ".to_string()
+        } else {
+            grapheme
+        };
+
+        Ok(phantom_core::types::CellData {
+            grapheme,
+            fg: style_color_to_string(&style.fg_color),
+            bg: style_color_to_string(&style.bg_color),
+            bold: style.bold,
+            italic: style.italic,
+            underline: !matches!(style.underline, libghostty_vt::style::Underline::None),
+            strikethrough: style.strikethrough,
+            inverse: style.inverse,
+            faint: style.faint,
+        })
+    }
+
     pub fn resize(&mut self, cols: u16, rows: u16) -> Result<()> {
         self.terminal.resize(cols, rows, 0, 0)?;
         self.pty.resize(cols, rows)?;
@@ -233,5 +283,15 @@ impl Session {
         self.rows = rows;
         self.screen_text_cache = None;
         Ok(())
+    }
+}
+
+fn style_color_to_string(color: &libghostty_vt::style::StyleColor) -> Option<String> {
+    match color {
+        libghostty_vt::style::StyleColor::None => None,
+        libghostty_vt::style::StyleColor::Rgb(c) => {
+            Some(format!("#{:02x}{:02x}{:02x}", c.r, c.g, c.b))
+        }
+        libghostty_vt::style::StyleColor::Palette(idx) => Some(format!("palette:{}", idx.0)),
     }
 }

@@ -79,6 +79,9 @@ enum Commands {
         /// Output format
         #[arg(long, default_value = "text")]
         format: String,
+        /// Region to capture: top,left,bottom,right (0-indexed)
+        #[arg(long)]
+        region: Option<String>,
     },
     /// Wait for a condition
     Wait {
@@ -115,6 +118,9 @@ enum Commands {
         /// Wait for text to disappear
         #[arg(long)]
         text_disappear: Option<String>,
+        /// Wait for screen to change from current state
+        #[arg(long)]
+        changed: bool,
         /// Timeout in ms
         #[arg(long, default_value = "10000")]
         timeout: u64,
@@ -124,6 +130,24 @@ enum Commands {
     },
     /// Query cursor position and style
     Cursor {
+        /// Session name
+        #[arg(short, long, required = true)]
+        session: String,
+    },
+    /// Inspect a single cell's content and attributes
+    Cell {
+        /// Session name
+        #[arg(short, long, required = true)]
+        session: String,
+        /// Column (0-indexed)
+        #[arg(long)]
+        x: u16,
+        /// Row (0-indexed)
+        #[arg(long)]
+        y: u16,
+    },
+    /// Get process output (what was written to stdout after TUI exit)
+    Output {
         /// Session name
         #[arg(short, long, required = true)]
         session: String,
@@ -167,6 +191,16 @@ enum Commands {
         #[arg(long, default_value = "30")]
         fps: u64,
     },
+    /// Save or compare screen snapshots
+    Snapshot {
+        #[command(subcommand)]
+        action: SnapshotAction,
+    },
+    /// Run commands from a file
+    Batch {
+        /// Path to command file
+        file: String,
+    },
     /// List all active sessions
     List,
     /// Terminate a session
@@ -182,6 +216,28 @@ enum Commands {
     Daemon {
         #[command(subcommand)]
         action: DaemonAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum SnapshotAction {
+    /// Save current screen to a file
+    Save {
+        /// Session name
+        #[arg(short, long, required = true)]
+        session: String,
+        /// Output file path
+        #[arg(short, long, required = true)]
+        file: String,
+    },
+    /// Compare current screen against a saved snapshot
+    Diff {
+        /// Session name
+        #[arg(short, long, required = true)]
+        session: String,
+        /// Reference file to compare against
+        #[arg(short, long, required = true)]
+        file: String,
     },
 }
 
@@ -235,7 +291,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Screenshot {
             session,
             format,
-        } => commands::screenshot::execute(session, format, output_mode).await,
+            region,
+        } => commands::screenshot::execute(session, format, region, output_mode).await,
         Commands::Wait {
             session,
             text,
@@ -248,6 +305,7 @@ async fn main() -> anyhow::Result<()> {
             process_exit,
             exit_code,
             text_disappear,
+            changed,
             timeout,
             poll,
         } => {
@@ -263,12 +321,17 @@ async fn main() -> anyhow::Result<()> {
                 process_exit,
                 exit_code,
                 text_disappear,
+                changed,
                 timeout,
                 poll,
             )
             .await
         }
         Commands::Cursor { session } => commands::cursor::execute(session, output_mode).await,
+        Commands::Cell { session, x, y } => {
+            commands::cell::execute(session, x, y, output_mode).await
+        }
+        Commands::Output { session } => commands::output::execute(session).await,
         Commands::Scrollback {
             session,
             lines,
@@ -281,6 +344,15 @@ async fn main() -> anyhow::Result<()> {
         } => commands::resize::execute(session, cols, rows).await,
         Commands::Status { session } => commands::status::execute(session, output_mode).await,
         Commands::Monitor { session, fps } => commands::monitor::execute(session, fps).await,
+        Commands::Snapshot { action } => match action {
+            SnapshotAction::Save { session, file } => {
+                commands::snapshot::save(session, file).await
+            }
+            SnapshotAction::Diff { session, file } => {
+                commands::snapshot::diff(session, file).await
+            }
+        },
+        Commands::Batch { file } => commands::batch::execute(file).await,
         Commands::List => commands::list::execute(output_mode).await,
         Commands::Kill { session, signal } => commands::kill::execute(session, signal).await,
         Commands::Daemon { action } => match action {

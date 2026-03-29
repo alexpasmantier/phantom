@@ -17,6 +17,7 @@ pub async fn execute(
     process_exit: bool,
     exit_code: Option<i32>,
     text_disappear: Option<String>,
+    changed: bool,
     timeout: u64,
     poll: u64,
 ) -> Result<()> {
@@ -56,6 +57,9 @@ pub async fn execute(
         conditions.push(WaitCondition::ProcessExited {
             exit_code: exit_code,
         });
+    }
+    if changed {
+        conditions.push(WaitCondition::ScreenChanged);
     }
 
     if conditions.is_empty() {

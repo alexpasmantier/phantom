@@ -38,6 +38,7 @@ pub enum EngineCommand {
     Screenshot {
         session: String,
         format: ScreenFormat,
+        region: Option<(u16, u16, u16, u16)>,
         reply: Sender<Response>,
     },
     Wait {
@@ -67,6 +68,16 @@ pub enum EngineCommand {
     GetScrollback {
         session: String,
         lines: Option<u32>,
+        reply: Sender<Response>,
+    },
+    GetOutput {
+        session: String,
+        reply: Sender<Response>,
+    },
+    GetCell {
+        session: String,
+        x: u16,
+        y: u16,
         reply: Sender<Response>,
     },
     KillSession {
@@ -177,9 +188,10 @@ impl Engine {
             EngineCommand::Screenshot {
                 session,
                 format,
+                region,
                 reply,
             } => {
-                let resp = self.screenshot(&session, &format);
+                let resp = self.screenshot(&session, &format, region);
                 let _ = reply.send(resp);
             }
             EngineCommand::Wait {
@@ -218,6 +230,19 @@ impl Engine {
                 reply,
             } => {
                 let resp = self.get_scrollback(&session, lines);
+                let _ = reply.send(resp);
+            }
+            EngineCommand::GetOutput { session, reply } => {
+                let resp = self.get_output(&session);
+                let _ = reply.send(resp);
+            }
+            EngineCommand::GetCell {
+                session,
+                x,
+                y,
+                reply,
+            } => {
+                let resp = self.get_cell(&session, x, y);
                 let _ = reply.send(resp);
             }
             EngineCommand::KillSession {
@@ -308,14 +333,39 @@ impl Engine {
         }
     }
 
-    fn screenshot(&mut self, session_name: &str, format: &ScreenFormat) -> Response {
+    fn screenshot(
+        &mut self,
+        session_name: &str,
+        format: &ScreenFormat,
+        region: Option<(u16, u16, u16, u16)>,
+    ) -> Response {
         let Some(session) = self.sessions.get_mut(session_name) else {
             return Response::session_not_found(session_name);
         };
 
-        match capture::capture_screen(session, format) {
+        match capture::capture_screen(session, format, region) {
             Ok(screen) => Response::ok_with(ResponseData::Screen(screen)),
             Err(e) => Response::error(exit_codes::ERROR, format!("Capture error: {e}")),
+        }
+    }
+
+    fn get_output(&mut self, session_name: &str) -> Response {
+        let Some(session) = self.sessions.get_mut(session_name) else {
+            return Response::session_not_found(session_name);
+        };
+        match session.get_output() {
+            Ok(text) => Response::ok_with(ResponseData::Text(text)),
+            Err(e) => Response::error(exit_codes::ERROR, format!("Output error: {e}")),
+        }
+    }
+
+    fn get_cell(&mut self, session_name: &str, x: u16, y: u16) -> Response {
+        let Some(session) = self.sessions.get_mut(session_name) else {
+            return Response::session_not_found(session_name);
+        };
+        match session.get_cell(x, y) {
+            Ok(cell) => Response::ok_with(ResponseData::Cell(cell)),
+            Err(e) => Response::error(exit_codes::ERROR, format!("Cell error: {e}")),
         }
     }
 

@@ -5,7 +5,12 @@ use phantom_core::types::{ScreenContent, ScreenFormat};
 use crate::daemon_ctl;
 use crate::output::OutputMode;
 
-pub async fn execute(session: String, format: String, output: OutputMode) -> Result<()> {
+pub async fn execute(
+    session: String,
+    format: String,
+    region: Option<String>,
+    output: OutputMode,
+) -> Result<()> {
     let fmt = match format.as_str() {
         "text" => ScreenFormat::Text,
         "json" => ScreenFormat::Json,
@@ -13,11 +18,26 @@ pub async fn execute(session: String, format: String, output: OutputMode) -> Res
         _ => anyhow::bail!("Invalid format: {format}. Use text, json, or html"),
     };
 
+    let region = match region {
+        Some(r) => {
+            let parts: Vec<u16> = r
+                .split(',')
+                .map(|s| s.parse())
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            if parts.len() != 4 {
+                anyhow::bail!("Region must be top,left,bottom,right");
+            }
+            Some((parts[0], parts[1], parts[2], parts[3]))
+        }
+        None => None,
+    };
+
     let mut conn = daemon_ctl::ensure_daemon().await?;
     let resp = conn
         .send(&Request::Screenshot {
             session,
             format: fmt.clone(),
+            region,
         })
         .await?;
 
@@ -35,7 +55,7 @@ pub async fn execute(session: String, format: String, output: OutputMode) -> Res
     Ok(())
 }
 
-fn print_screen(screen: &ScreenContent, format: &ScreenFormat, output: OutputMode) {
+fn print_screen(screen: &ScreenContent, format: &ScreenFormat, _output: OutputMode) {
     match format {
         ScreenFormat::Text => {
             for row in &screen.screen {
@@ -43,11 +63,7 @@ fn print_screen(screen: &ScreenContent, format: &ScreenFormat, output: OutputMod
             }
         }
         ScreenFormat::Json | ScreenFormat::Html => {
-            if output.is_json() {
-                println!("{}", serde_json::to_string_pretty(screen).unwrap());
-            } else {
-                println!("{}", serde_json::to_string_pretty(screen).unwrap());
-            }
+            println!("{}", serde_json::to_string_pretty(screen).unwrap());
         }
     }
 }

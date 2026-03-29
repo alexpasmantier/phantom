@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    CursorInfo, InputAction, ScreenContent, ScreenFormat, SessionInfo, WaitCondition,
+    CellData, CursorInfo, InputAction, ScreenContent, ScreenFormat, SessionInfo, WaitCondition,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,6 +24,8 @@ pub enum Request {
     Screenshot {
         session: String,
         format: ScreenFormat,
+        /// Optional region: (top, left, bottom, right) — 0-indexed, inclusive
+        region: Option<(u16, u16, u16, u16)>,
     },
     Wait {
         session: String,
@@ -48,6 +50,14 @@ pub enum Request {
         session: String,
     },
     ListSessions,
+    GetOutput {
+        session: String,
+    },
+    GetCell {
+        session: String,
+        x: u16,
+        y: u16,
+    },
     KillSession {
         session: String,
         signal: Option<i32>,
@@ -75,6 +85,7 @@ pub enum ResponseData {
     Sessions(Vec<SessionInfo>),
     Screen(ScreenContent),
     Cursor(CursorInfo),
+    Cell(CellData),
     Text(String),
 }
 

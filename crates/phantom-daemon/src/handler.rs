@@ -75,9 +75,14 @@ async fn dispatch_request(
             action,
             reply: reply_tx,
         },
-        Request::Screenshot { session, format } => EngineCommand::Screenshot {
+        Request::Screenshot {
             session,
             format,
+            region,
+        } => EngineCommand::Screenshot {
+            session,
+            format,
+            region,
             reply: reply_tx,
         },
         Request::Wait {
@@ -118,6 +123,16 @@ async fn dispatch_request(
             reply: reply_tx,
         },
         Request::ListSessions => EngineCommand::ListSessions { reply: reply_tx },
+        Request::GetOutput { session } => EngineCommand::GetOutput {
+            session,
+            reply: reply_tx,
+        },
+        Request::GetCell { session, x, y } => EngineCommand::GetCell {
+            session,
+            x,
+            y,
+            reply: reply_tx,
+        },
         Request::KillSession { session, signal } => EngineCommand::KillSession {
             session,
             signal,
