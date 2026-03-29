@@ -3,6 +3,10 @@ name = "phantom-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Core types and protocol for phantom"
 
 [dependencies]
 serde.workspace = true
