@@ -89,7 +89,7 @@ start_monitor() {
         tmux popup -d '#{pane_current_path}' -w 80% -h 80% -E \
             "$PT --socket $SOCK monitor -s $SESSION" &
         MONITOR_PID=$!
-        sleep 0.3
+        sleep 0.5
     fi
 }
 
@@ -158,6 +158,7 @@ check "region screenshot" bash -c "test \$($PT --socket $SOCK screenshot -s cap 
 echo -e "\n${BOLD}  Input${NC}"
 # ═════════════════════════════════════════════════════════
 
+wait_stable 300 5000
 run_cmd "echo TYPED"
 wait_text "TYPED"
 check "type text" contains "TYPED"
