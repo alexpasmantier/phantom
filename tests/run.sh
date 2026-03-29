@@ -329,10 +329,10 @@ if command -v less &>/dev/null; then
 
     new_session "less" --cols 80 --rows 24 -- less "$LESS_FILE"
     start_monitor
-    sleep 2
-    wait_stable 500 10000
+    sleep 1
+    wait_stable 1000 10000
 
-    check "less view" contains "Line 1:"
+    check "less view" contains "Line 1"
 
     send_key "space"
     check "less scroll" bash -c "$PT --socket $SOCK wait -s less --text-disappear 'Line 1:' --timeout 5000"

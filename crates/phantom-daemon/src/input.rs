@@ -47,11 +47,21 @@ pub fn send_key(session: &mut Session, key_spec: &str) -> Result<()> {
     Ok(())
 }
 
-/// Send bracketed paste.
+/// Send bracketed paste. Only wraps with escape sequences if the terminal
+/// has bracketed paste mode enabled, otherwise sends raw text.
 pub fn paste(session: &mut Session, text: &str) -> Result<()> {
-    session.pty.write(b"\x1b[200~")?;
+    let bracketed = session
+        .terminal
+        .mode(libghostty_vt::terminal::Mode::BRACKETED_PASTE)
+        .unwrap_or(false);
+
+    if bracketed {
+        session.pty.write(b"\x1b[200~")?;
+    }
     session.pty.write(text.as_bytes())?;
-    session.pty.write(b"\x1b[201~")?;
+    if bracketed {
+        session.pty.write(b"\x1b[201~")?;
+    }
     Ok(())
 }
 
