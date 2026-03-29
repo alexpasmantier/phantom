@@ -2,6 +2,7 @@ pub mod cursor;
 pub mod daemon;
 pub mod kill;
 pub mod list;
+pub mod monitor;
 pub mod resize;
 pub mod run;
 pub mod screenshot;

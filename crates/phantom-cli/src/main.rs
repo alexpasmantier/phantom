@@ -158,6 +158,15 @@ enum Commands {
         #[arg(short, long, required = true)]
         session: String,
     },
+    /// Live view of a session (updates in real-time)
+    Monitor {
+        /// Session name
+        #[arg(short, long, required = true)]
+        session: String,
+        /// Refresh rate in fps
+        #[arg(long, default_value = "30")]
+        fps: u64,
+    },
     /// List all active sessions
     List,
     /// Terminate a session
@@ -271,6 +280,7 @@ async fn main() -> anyhow::Result<()> {
             rows,
         } => commands::resize::execute(session, cols, rows).await,
         Commands::Status { session } => commands::status::execute(session, output_mode).await,
+        Commands::Monitor { session, fps } => commands::monitor::execute(session, fps).await,
         Commands::List => commands::list::execute(output_mode).await,
         Commands::Kill { session, signal } => commands::kill::execute(session, signal).await,
         Commands::Daemon { action } => match action {
