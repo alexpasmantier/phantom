@@ -12,6 +12,10 @@ description.workspace = true
 name = "phantom"
 path = "src/main.rs"
 
+[[bin]]
+name = "pt"
+path = "src/main.rs"
+
 [dependencies]
 phantom-core.workspace = true
 clap.workspace = true
