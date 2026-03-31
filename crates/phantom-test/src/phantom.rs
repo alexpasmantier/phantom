@@ -20,12 +20,15 @@ pub(crate) struct PhantomInner {
     pub default_timeout_ms: u64,
 }
 
+pub(crate) type SessionHook = Arc<dyn Fn(Arc<PhantomInner>, String) + Send + Sync>;
+
 /// The phantom engine handle. Spawns a terminal emulation engine on a
 /// background thread. Create sessions from it to drive TUI applications.
 pub struct Phantom {
     pub(crate) inner: Arc<PhantomInner>,
     engine_thread: Option<JoinHandle<()>>,
     session_counter: AtomicU64,
+    pub(crate) on_session_created: Option<SessionHook>,
 }
 
 impl Phantom {
@@ -57,6 +60,7 @@ impl Phantom {
             }),
             engine_thread: Some(engine_thread),
             session_counter: AtomicU64::new(0),
+            on_session_created: None,
         })
     }
 

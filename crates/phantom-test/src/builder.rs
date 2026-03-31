@@ -107,6 +107,9 @@ impl<'a> SessionBuilder<'a> {
 
         match response_to_result(resp)? {
             Some(ResponseData::Session(_)) => {
+                if let Some(ref hook) = self.phantom.on_session_created {
+                    hook(self.phantom.inner.clone(), name.clone());
+                }
                 Ok(Session::new(self.phantom.inner.clone(), name))
             }
             _ => panic!("unexpected response from create_session"),

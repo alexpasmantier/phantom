@@ -10,6 +10,10 @@ description = "Ergonomic Rust library for TUI integration testing with phantom"
 keywords = ["tui", "terminal", "testing", "automation"]
 categories = ["development-tools::testing"]
 
+[features]
+default = []
+monitor = ["ratatui", "crossterm", "throbber-widgets-tui"]
+
 [dependencies]
 phantom-core.workspace = true
 phantom-daemon = { path = "../phantom-daemon" }
@@ -17,6 +21,10 @@ crossbeam-channel.workspace = true
 mio.workspace = true
 regex.workspace = true
 anyhow.workspace = true
+nix.workspace = true
+ratatui = { version = "0.29", optional = true }
+crossterm = { version = "0.28", optional = true }
+throbber-widgets-tui = { version = "0.8", optional = true }
 
 [dev-dependencies]
 tempfile = "3"

@@ -18,14 +18,18 @@
 mod builder;
 mod error;
 mod phantom;
+pub mod runner;
 mod screen;
 mod send;
 mod session;
+#[cfg(feature = "monitor")]
+pub(crate) mod tui;
 mod wait;
 
 pub use builder::SessionBuilder;
 pub use error::{PhantomError, Result};
 pub use phantom::Phantom;
+pub use runner::TestRunner;
 pub use screen::Screen;
 pub use send::SendBuilder;
 pub use session::Session;
