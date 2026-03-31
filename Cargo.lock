@@ -466,6 +466,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "phantom-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crossbeam-channel",
+ "mio",
+ "phantom-core",
+ "phantom-daemon",
+ "regex",
+ "tempfile",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"

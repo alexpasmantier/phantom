@@ -101,7 +101,8 @@ _new_session_inner() {
 }
 
 start_monitor() {
-    if [ "${MONITOR_MODE:-}" = "--monitor" ] && [ -n "${TMUX:-}" ] && [ -z "$MONITOR_PID" ]; then
+    if [ "${MONITOR_MODE:-}" = "--monitor" ] && [ -n "${TMUX:-}" ]; then
+        stop_monitor
         tmux popup -d '#{pane_current_path}' -w 80% -h 80% -E \
             "$PT --socket $SOCK monitor -s $SESSION" &
         MONITOR_PID=$!
@@ -110,6 +111,9 @@ start_monitor() {
 }
 
 stop_monitor() {
+    # Explicitly close the tmux popup (killing the client PID alone
+    # doesn't reliably close the server-side popup)
+    tmux display-popup -C 2>/dev/null || true
     if [ -n "$MONITOR_PID" ]; then
         kill "$MONITOR_PID" 2>/dev/null || true
         wait "$MONITOR_PID" 2>/dev/null || true
@@ -208,6 +212,7 @@ check "wait text present" wait_text "DELAYED" 5000
 # Fresh session for this test — screen clearing is unreliable across sessions
 pt kill -s "$SESSION" || true; sleep 0.2
 new_session "absent" --cols 80 --rows 24 -- bash --norc --noprofile
+start_monitor
 wait_stable 1000 10000
 run_cmd "echo TEMP_XYZ"
 wait_text "TEMP_XYZ"
@@ -239,6 +244,7 @@ echo -e "\n${BOLD}  Resize${NC}"
 # Fresh session for resize test
 pt kill -s "$SESSION" || true; sleep 0.2
 new_session "resz" --cols 80 --rows 24 -- bash --norc --noprofile
+start_monitor
 wait_stable 1000 10000
 pt resize -s "$SESSION" --cols 120 --rows 40
 sleep 1

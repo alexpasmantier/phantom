@@ -1,0 +1,22 @@
+[package]
+name = "phantom-test"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Ergonomic Rust library for TUI integration testing with phantom"
+keywords = ["tui", "terminal", "testing", "automation"]
+categories = ["development-tools::testing"]
+
+[dependencies]
+phantom-core.workspace = true
+phantom-daemon = { path = "../phantom-daemon" }
+crossbeam-channel.workspace = true
+mio.workspace = true
+regex.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
