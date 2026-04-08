@@ -11,6 +11,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  ZIG_VERSION: "0.15.2"
 
 jobs:
   check:
@@ -19,7 +20,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        include:
+          - os: macos-latest
+            zig-arch: aarch64-macos
+          - os: ubuntu-latest
+            zig-arch: x86_64-linux
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,9 +32,10 @@ jobs:
           submodules: recursive
 
       - name: Install Zig
-        uses: mlugg/setup-zig@v1
-        with:
-          version: 0.15.2
+        run: |
+          curl -L -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-${{ matrix.zig-arch }}-${ZIG_VERSION}.tar.xz"
+          tar xf zig.tar.xz
+          echo "$PWD/zig-${{ matrix.zig-arch }}-${ZIG_VERSION}" >> "$GITHUB_PATH"
 
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
