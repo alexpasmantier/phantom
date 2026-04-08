@@ -30,6 +30,22 @@ fn dirs_home() -> Option<PathBuf> {
     std::env::var("HOME").ok().map(PathBuf::from)
 }
 
+/// Remove a stale socket file left behind by a crashed daemon.
+/// Returns true if a stale socket was cleaned up.
+fn cleanup_stale_socket(path: &PathBuf) -> bool {
+    if !path.exists() {
+        return false;
+    }
+    // Try a quick connect — if it fails, the socket is stale
+    match std::os::unix::net::UnixStream::connect(path) {
+        Ok(_) => false, // daemon is actually running
+        Err(_) => {
+            let _ = std::fs::remove_file(path);
+            true
+        }
+    }
+}
+
 pub async fn ensure_daemon() -> Result<Connection> {
     let path = socket_path();
 
@@ -38,22 +54,30 @@ pub async fn ensure_daemon() -> Result<Connection> {
         return Ok(conn);
     }
 
+    // Clean up stale socket from a previous crashed daemon
+    cleanup_stale_socket(&path);
+
     // Start the daemon
     let daemon_bin = std::env::current_exe()?
         .parent()
-        .context("no parent dir")?
+        .context("cannot determine executable directory")?
         .join("phantom-daemon");
 
     if !daemon_bin.exists() {
         bail!(
-            "Daemon binary not found at {}. Build phantom-daemon first.",
-            daemon_bin.display()
+            "Daemon binary not found at {path}\n\
+             \n\
+             Make sure phantom-daemon is built and in the same directory as phantom:\n\
+             \n\
+                 cargo build --workspace",
+            path = daemon_bin.display()
         );
     }
 
     // Create socket directory
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create socket directory: {}", parent.display()))?;
     }
 
     Command::new(&daemon_bin)
@@ -70,5 +94,11 @@ pub async fn ensure_daemon() -> Result<Connection> {
         }
     }
 
-    bail!("Daemon failed to start within 5 seconds")
+    bail!(
+        "Daemon failed to start within 5 seconds\n\
+         \n\
+         Try running it manually to see errors:\n\
+         \n\
+             phantom daemon start --foreground"
+    )
 }

@@ -4,10 +4,9 @@ use crate::daemon_ctl;
 
 pub async fn start(foreground: bool, socket: Option<String>) -> Result<()> {
     if foreground {
-        // In foreground mode, exec the daemon directly
         let daemon_bin = std::env::current_exe()?
             .parent()
-            .ok_or_else(|| anyhow::anyhow!("no parent dir"))?
+            .ok_or_else(|| anyhow::anyhow!("cannot determine executable directory"))?
             .join("phantom-daemon");
 
         let mut cmd = tokio::process::Command::new(&daemon_bin);
@@ -19,30 +18,65 @@ pub async fn start(foreground: bool, socket: Option<String>) -> Result<()> {
         std::process::exit(status.code().unwrap_or(1));
     } else {
         let _ = daemon_ctl::ensure_daemon().await?;
-        println!("Daemon started");
+        let path = daemon_ctl::socket_path();
+        println!("Daemon started (socket: {})", path.display());
         Ok(())
     }
 }
 
 pub async fn stop() -> Result<()> {
     let path = daemon_ctl::socket_path();
-    if let Ok(mut conn) = crate::connection::Connection::connect(&path).await {
-        let _ = conn
-            .send(&phantom_core::protocol::Request::Shutdown)
-            .await;
+    match crate::connection::Connection::connect(&path).await {
+        Ok(mut conn) => {
+            let _ = conn.send(&phantom_core::protocol::Request::Shutdown).await;
+            let _ = std::fs::remove_file(&path);
+            println!("Daemon stopped");
+        }
+        Err(_) => {
+            // Clean up stale socket if present
+            if path.exists() {
+                let _ = std::fs::remove_file(&path);
+            }
+            println!("Daemon is not running");
+        }
     }
-    // Clean up socket file
-    let _ = std::fs::remove_file(&path);
-    println!("Daemon stopped");
     Ok(())
 }
 
 pub async fn status() -> Result<()> {
     let path = daemon_ctl::socket_path();
     match crate::connection::Connection::connect(&path).await {
-        Ok(_) => println!("Daemon is running (socket: {})", path.display()),
+        Ok(mut conn) => {
+            // Try listing sessions to confirm the daemon is responsive
+            match conn
+                .send(&phantom_core::protocol::Request::ListSessions)
+                .await
+            {
+                Ok(phantom_core::protocol::Response::Ok { data }) => {
+                    let session_count = match &data {
+                        Some(phantom_core::protocol::ResponseData::Sessions(s)) => s.len(),
+                        _ => 0,
+                    };
+                    println!("Daemon is running");
+                    println!("  socket:   {}", path.display());
+                    println!("  version:  {}", env!("CARGO_PKG_VERSION"));
+                    println!("  sessions: {session_count}");
+                }
+                _ => {
+                    println!("Daemon is running (socket: {})", path.display());
+                }
+            }
+        }
         Err(_) => {
-            println!("Daemon is not running");
+            if path.exists() {
+                println!(
+                    "Daemon is not running (stale socket file at {})",
+                    path.display()
+                );
+                println!("  Run `phantom daemon stop` to clean up");
+            } else {
+                println!("Daemon is not running");
+            }
             std::process::exit(1);
         }
     }
