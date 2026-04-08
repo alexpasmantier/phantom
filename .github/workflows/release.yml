@@ -35,7 +35,7 @@ jobs:
       - name: Install Zig
         uses: mlugg/setup-zig@v1
         with:
-          version: 0.15.0-dev.674+b9a93e328
+          version: 0.15.2
 
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
