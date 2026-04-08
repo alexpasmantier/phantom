@@ -544,3 +544,216 @@ fn emoji() {
         "screenshot should contain emoji: {screen}"
     );
 }
+
+// ═══════════════════════════════════════════════════════════
+// Cursor wait conditions
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn cursor_at_wait() {
+    let pt = Phantom::new().unwrap();
+    let s = bash_ready(&pt);
+
+    let cursor = s.cursor().unwrap();
+    s.wait().cursor_at(cursor.x, cursor.y).until().unwrap();
+}
+
+#[test]
+fn cursor_at_wrong_position() {
+    let pt = Phantom::new().unwrap();
+    let s = bash_ready(&pt);
+
+    let result = s.wait().cursor_at(79, 23).timeout_ms(500).until();
+    assert!(
+        matches!(result, Err(PhantomError::WaitTimeout)),
+        "expected WaitTimeout for wrong cursor position, got: {result:?}"
+    );
+}
+
+#[test]
+fn cursor_visible_wait() {
+    let pt = Phantom::new().unwrap();
+    let s = bash_ready(&pt);
+
+    s.wait().cursor_visible().until().unwrap();
+}
+
+// ═══════════════════════════════════════════════════════════
+// Modifier and multi-key input
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn modifier_keys() {
+    let pt = Phantom::new().unwrap();
+    let s = bash_ready(&pt);
+
+    s.send().key("alt-a").unwrap();
+    s.send().key("shift-a").unwrap();
+    s.send().key("ctrl-a").unwrap();
+}
+
+#[test]
+fn keys_sequence() {
+    let pt = Phantom::new().unwrap();
+    let s = bash_ready(&pt);
+
+    s.send().keys(&["ctrl-a", "ctrl-e"]).unwrap();
+}
+
+// ═══════════════════════════════════════════════════════════
+// Kill with signal
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn kill_with_signal() {
+    let pt = Phantom::new().unwrap();
+    let s = pt.run("sleep").args(&["999"]).start().unwrap();
+
+    s.kill_with_signal(9).unwrap();
+    s.wait().process_exit().until().unwrap();
+}
+
+// ═══════════════════════════════════════════════════════════
+// Session isolation
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn session_isolation() {
+    let pt = Phantom::new().unwrap();
+
+    let a = pt
+        .run("bash")
+        .args(&["--norc", "--noprofile"])
+        .name("iso_a")
+        .start()
+        .unwrap();
+    let b = pt
+        .run("bash")
+        .args(&["--norc", "--noprofile"])
+        .name("iso_b")
+        .start()
+        .unwrap();
+
+    a.wait().stable(300).until().unwrap();
+    b.wait().stable(300).until().unwrap();
+
+    a.send().type_text("echo ONLY_A\n").unwrap();
+    a.wait().text("ONLY_A").until().unwrap();
+
+    let screen_b = b.screenshot().unwrap();
+    assert!(
+        !screen_b.contains("ONLY_A"),
+        "session B should not contain output from session A:\n{screen_b}"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Custom session configuration
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn custom_dimensions() {
+    let pt = Phantom::new().unwrap();
+    let s = pt
+        .run("bash")
+        .args(&["--norc", "--noprofile"])
+        .cols(40)
+        .rows(10)
+        .start()
+        .unwrap();
+    s.wait().stable(300).until().unwrap();
+
+    s.send().type_text("tput cols\n").unwrap();
+    s.wait().text("40").until().unwrap();
+
+    s.send().type_text("tput lines\n").unwrap();
+    s.wait().text("10").until().unwrap();
+}
+
+#[test]
+fn custom_env() {
+    let pt = Phantom::new().unwrap();
+    let s = pt
+        .run("bash")
+        .args(&["--norc", "--noprofile"])
+        .env("PHANTOM_TEST_VAR", "hello123")
+        .start()
+        .unwrap();
+    s.wait().stable(300).until().unwrap();
+
+    s.send().type_text("echo $PHANTOM_TEST_VAR\n").unwrap();
+    s.wait().text("hello123").until().unwrap();
+}
+
+#[test]
+fn custom_cwd() {
+    let pt = Phantom::new().unwrap();
+    let s = pt
+        .run("bash")
+        .args(&["--norc", "--noprofile"])
+        .cwd("/tmp")
+        .start()
+        .unwrap();
+    s.wait().stable(300).until().unwrap();
+
+    s.send().type_text("pwd\n").unwrap();
+    // On macOS /tmp is a symlink to /private/tmp, so just check for "tmp"
+    s.wait().text("tmp").until().unwrap();
+}
+
+// ═══════════════════════════════════════════════════════════
+// Invalid input handling
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn invalid_key_spec() {
+    let pt = Phantom::new().unwrap();
+    let s = bash_ready(&pt);
+
+    let result = s.send().key("not-a-real-key");
+    assert!(result.is_err(), "invalid key spec should return an error");
+}
+
+#[test]
+fn invalid_mouse_spec() {
+    let pt = Phantom::new().unwrap();
+    let s = bash_ready(&pt);
+
+    let result = s.send().mouse("garbage");
+    assert!(result.is_err(), "invalid mouse spec should return an error");
+}
+
+// ═══════════════════════════════════════════════════════════
+// Send to exited session
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn send_to_exited_session() {
+    let pt = Phantom::new().unwrap();
+    let s = pt.run("bash").args(&["-c", "exit 0"]).start().unwrap();
+    s.wait().process_exit().until().unwrap();
+
+    // Should not panic regardless of whether it returns Ok or Err
+    let _ = s.send().type_text("hello");
+}
+
+// ═══════════════════════════════════════════════════════════
+// Screen size from screenshot with custom dimensions
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn screen_size_after_custom_dimensions() {
+    let pt = Phantom::new().unwrap();
+    let s = pt
+        .run("bash")
+        .args(&["--norc", "--noprofile"])
+        .cols(100)
+        .rows(50)
+        .start()
+        .unwrap();
+    s.wait().stable(300).until().unwrap();
+
+    let screen = s.screenshot_json().unwrap();
+    assert_eq!(screen.cols, 100, "screenshot cols should be 100");
+    assert_eq!(screen.rows, 50, "screenshot rows should be 50");
+}

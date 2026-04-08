@@ -597,3 +597,246 @@ fn test_type_with_delay() {
     assert_ok(&resp);
     assert_ok(&h.wait_for_text("delay", "delayed", 5000));
 }
+
+// ═══════════════════════════════════════════════════════════
+// Cursor wait conditions
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_cursor_at_wait() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("curat", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("curat", 300, 5000));
+
+    // Get current cursor position
+    let cursor = h.get_cursor("curat");
+
+    // Wait with CursorAt matching the current position — should succeed
+    let resp = h.wait_with_conditions(
+        "curat",
+        vec![WaitCondition::CursorAt {
+            x: cursor.x,
+            y: cursor.y,
+        }],
+        5000,
+    );
+    assert_ok(&resp);
+}
+
+#[test]
+fn test_cursor_at_wait_wrong_position() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("curwrong", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("curwrong", 300, 5000));
+
+    // Wait for cursor at a position that's definitely wrong — should timeout
+    let resp = h.wait_with_conditions(
+        "curwrong",
+        vec![WaitCondition::CursorAt { x: 79, y: 23 }],
+        500,
+    );
+    assert_error(&resp, exit_codes::WAIT_TIMEOUT);
+}
+
+#[test]
+fn test_cursor_visible_wait() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("curvis", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("curvis", 300, 5000));
+
+    // Bash cursor should be visible
+    let resp = h.wait_with_conditions("curvis", vec![WaitCondition::CursorVisible(true)], 5000);
+    assert_ok(&resp);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Modifier keys
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_modifier_keys() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("modkeys", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("modkeys", 300, 5000));
+
+    // Sending modifier key combos should not error
+    assert_ok(&h.send_keys("modkeys", &["alt-a"]));
+    assert_ok(&h.send_keys("modkeys", &["shift-a"]));
+    assert_ok(&h.send_keys("modkeys", &["ctrl-a"]));
+}
+
+// ═══════════════════════════════════════════════════════════
+// Kill with signal
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_kill_with_signal() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("killsig", "sleep", &["999"], 80, 24));
+
+    // Send SIGKILL (signal 9) directly via send_command_raw
+    let resp = h.send_command_raw(|reply| phantom_daemon::engine::EngineCommand::KillSession {
+        session: "killsig".to_string(),
+        signal: Some(9),
+        reply,
+    });
+    assert_ok(&resp);
+
+    // Wait for the process to exit
+    assert_ok(&h.wait_for_exit("killsig", 5000));
+}
+
+// ═══════════════════════════════════════════════════════════
+// Session isolation
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_session_isolation() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("iso_a", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.create_session("iso_b", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("iso_a", 300, 5000));
+    assert_ok(&h.wait_for_stable("iso_b", 300, 5000));
+
+    // Send output only to iso_a
+    h.send_type("iso_a", "echo ONLY_IN_A\n");
+    assert_ok(&h.wait_for_text("iso_a", "ONLY_IN_A", 5000));
+
+    // iso_b should NOT contain that text
+    let text_b = h.screenshot_text("iso_b");
+    assert!(
+        !text_b.contains("ONLY_IN_A"),
+        "iso_b should not contain iso_a's output, got:\n{text_b}"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Custom dimensions
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_custom_dimensions() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("dims", "bash", &["--norc", "--noprofile"], 40, 10));
+    assert_ok(&h.wait_for_stable("dims", 300, 5000));
+
+    h.send_type("dims", "tput cols\n");
+    assert_ok(&h.wait_for_text("dims", "40", 5000));
+
+    h.send_type("dims", "tput lines\n");
+    assert_ok(&h.wait_for_text("dims", "10", 5000));
+}
+
+// ═══════════════════════════════════════════════════════════
+// Create session with env
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_create_session_with_env() {
+    let h = TestHarness::new();
+
+    // Create session with custom env var via send_command_raw
+    let resp = h.send_command_raw(
+        |reply| phantom_daemon::engine::EngineCommand::CreateSession {
+            name: "envtest".to_string(),
+            command: "bash".to_string(),
+            args: vec!["--norc".to_string(), "--noprofile".to_string()],
+            env: vec![
+                ("LANG".into(), "C".into()),
+                ("LC_ALL".into(), "C".into()),
+                ("PHANTOM_TEST_VAR".into(), "hello123".into()),
+            ],
+            cwd: None,
+            cols: 80,
+            rows: 24,
+            scrollback: 1000,
+            reply,
+        },
+    );
+    assert_ok(&resp);
+    assert_ok(&h.wait_for_stable("envtest", 300, 5000));
+
+    h.send_type("envtest", "echo $PHANTOM_TEST_VAR\n");
+    assert_ok(&h.wait_for_text("envtest", "hello123", 5000));
+}
+
+// ═══════════════════════════════════════════════════════════
+// Create session with cwd
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_create_session_with_cwd() {
+    let h = TestHarness::new();
+
+    // Create session with cwd set to /tmp
+    let resp = h.send_command_raw(
+        |reply| phantom_daemon::engine::EngineCommand::CreateSession {
+            name: "cwdtest".to_string(),
+            command: "bash".to_string(),
+            args: vec!["--norc".to_string(), "--noprofile".to_string()],
+            env: vec![("LANG".into(), "C".into()), ("LC_ALL".into(), "C".into())],
+            cwd: Some("/tmp".to_string()),
+            cols: 80,
+            rows: 24,
+            scrollback: 1000,
+            reply,
+        },
+    );
+    assert_ok(&resp);
+    assert_ok(&h.wait_for_stable("cwdtest", 300, 5000));
+
+    h.send_type("cwdtest", "pwd\n");
+    // On macOS /tmp is a symlink to /private/tmp, so check for either
+    let wait_resp = h.wait_for_regex("cwdtest", r"(/private)?/tmp", 5000);
+    assert_ok(&wait_resp);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Invalid input specs
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_invalid_key_spec() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("badkey", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("badkey", 300, 5000));
+
+    let resp = h.send_keys("badkey", &["not-a-real-key"]);
+    assert!(
+        matches!(resp, phantom_core::protocol::Response::Error { .. }),
+        "invalid key spec should return an error, got: {resp:?}"
+    );
+}
+
+#[test]
+fn test_invalid_mouse_spec() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("badmouse", "bash", &["--norc", "--noprofile"], 80, 24));
+    assert_ok(&h.wait_for_stable("badmouse", 300, 5000));
+
+    let resp = h.send_mouse("badmouse", "invalid");
+    assert!(
+        matches!(resp, phantom_core::protocol::Response::Error { .. }),
+        "invalid mouse spec should return an error, got: {resp:?}"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Send to exited session
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_send_to_exited_session() {
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("exited", "bash", &["-c", "exit 0"], 80, 24));
+
+    // Wait for the process to exit
+    assert_ok(&h.wait_for_exit("exited", 5000));
+
+    // Trying to send input to an exited session should return an error
+    let resp = h.send_type("exited", "echo should_fail\n");
+    assert!(
+        matches!(resp, phantom_core::protocol::Response::Error { .. }),
+        "sending to exited session should return an error, got: {resp:?}"
+    );
+}
