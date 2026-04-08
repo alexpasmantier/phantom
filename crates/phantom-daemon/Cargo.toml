@@ -7,7 +7,8 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description = "Daemon for phantom TUI automation"
-publish = false
+keywords = ["tui", "terminal", "testing", "automation", "ghostty"]
+categories = ["development-tools::testing"]
 
 [[bin]]
 name = "phantom-daemon"

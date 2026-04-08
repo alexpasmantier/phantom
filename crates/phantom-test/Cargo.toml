@@ -16,7 +16,7 @@ monitor = ["ratatui", "crossterm", "throbber-widgets-tui"]
 
 [dependencies]
 phantom-core.workspace = true
-phantom-daemon = { path = "../phantom-daemon" }
+phantom-daemon = { path = "../phantom-daemon", version = "0.1.0" }
 crossbeam-channel.workspace = true
 mio.workspace = true
 regex.workspace = true

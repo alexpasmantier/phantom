@@ -15,7 +15,7 @@ keywords = ["tui", "terminal", "testing", "automation", "ghostty"]
 categories = ["command-line-utilities", "development-tools::testing"]
 
 [workspace.dependencies]
-phantom-core = { path = "crates/phantom-core" }
+phantom-core = { path = "crates/phantom-core", version = "0.1.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "io-util", "signal", "time"] }
