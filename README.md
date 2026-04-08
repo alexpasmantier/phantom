@@ -8,6 +8,10 @@ Phantom lets you programmatically drive any terminal application — spawn it, s
 
 **Use cases:** AI agent tool use, TUI integration testing, terminal automation.
 
+<p align="center">
+  <img src="assets/demo.gif" alt="phantom test runner with live TUI monitor" width="800">
+</p>
+
 ## Quick Start
 
 ```bash
@@ -108,8 +112,6 @@ s.wait().process_exit().until()?;
 ### Test Runner with Live Monitor
 
 `TestRunner` runs structured test suites with an optional TUI monitor that shows test progress alongside a live view of the terminal session being tested:
-
-<!-- TODO: add a gif/screenshot of the monitor here -->
 
 ```rust
 use phantom_test::TestRunner;
