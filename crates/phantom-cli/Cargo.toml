@@ -7,6 +7,7 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description.workspace = true
+publish = false
 
 [[bin]]
 name = "phantom"
@@ -14,11 +15,12 @@ path = "src/main.rs"
 
 [[bin]]
 name = "pt"
-path = "src/main.rs"
+path = "src/pt.rs"
 
 [dependencies]
 phantom-core.workspace = true
-clap.workspace = true
+clap = { workspace = true, features = ["string"] }
+clap_complete = "4"
 tokio = { workspace = true, features = ["process"] }
 regex.workspace = true
 serde.workspace = true

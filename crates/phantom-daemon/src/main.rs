@@ -11,7 +11,7 @@ use clap::Parser;
 use mio::Waker;
 
 #[derive(Parser)]
-#[command(name = "phantom-daemon")]
+#[command(name = "phantom-daemon", version)]
 struct Args {
     /// Socket path
     #[arg(long)]
@@ -46,17 +46,15 @@ fn main() -> Result<()> {
 
     let engine_handle = std::thread::Builder::new()
         .name("phantom-engine".into())
-        .spawn(move || {
-            match engine::Engine::new(cmd_rx) {
-                Ok((mut engine, waker)) => {
-                    let _ = waker_tx.send(Arc::new(waker));
-                    if let Err(e) = engine.run() {
-                        tracing::error!("Engine error: {e}");
-                    }
+        .spawn(move || match engine::Engine::new(cmd_rx) {
+            Ok((mut engine, waker)) => {
+                let _ = waker_tx.send(Arc::new(waker));
+                if let Err(e) = engine.run() {
+                    tracing::error!("Engine error: {e}");
                 }
-                Err(e) => {
-                    tracing::error!("Failed to create engine: {e}");
-                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to create engine: {e}");
             }
         })?;
 

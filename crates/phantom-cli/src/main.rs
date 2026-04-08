@@ -3,10 +3,15 @@ mod connection;
 mod daemon_ctl;
 mod output;
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "phantom", about = "Headless TUI interaction for AI agents and integration tests")]
+#[command(
+    name = "phantom",
+    about = "Headless TUI interaction for AI agents and integration tests",
+    version,
+    propagate_version = true
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -217,6 +222,12 @@ enum Commands {
         #[command(subcommand)]
         action: DaemonAction,
     },
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
 }
 
 #[derive(Subcommand)]
@@ -277,8 +288,17 @@ async fn main() -> anyhow::Result<()> {
             cwd,
             command,
         } => {
-            commands::run::execute(session, cols, rows, scrollback, envs, cwd, command, output_mode)
-                .await
+            commands::run::execute(
+                session,
+                cols,
+                rows,
+                scrollback,
+                envs,
+                cwd,
+                command,
+                output_mode,
+            )
+            .await
         }
         Commands::Send {
             session,
@@ -345,24 +365,28 @@ async fn main() -> anyhow::Result<()> {
         Commands::Status { session } => commands::status::execute(session, output_mode).await,
         Commands::Monitor { session, fps } => commands::monitor::execute(session, fps).await,
         Commands::Snapshot { action } => match action {
-            SnapshotAction::Save { session, file } => {
-                commands::snapshot::save(session, file).await
-            }
-            SnapshotAction::Diff { session, file } => {
-                commands::snapshot::diff(session, file).await
-            }
+            SnapshotAction::Save { session, file } => commands::snapshot::save(session, file).await,
+            SnapshotAction::Diff { session, file } => commands::snapshot::diff(session, file).await,
         },
         Commands::Batch { file } => commands::batch::execute(file).await,
         Commands::List => commands::list::execute(output_mode).await,
         Commands::Kill { session, signal } => commands::kill::execute(session, signal).await,
         Commands::Daemon { action } => match action {
-            DaemonAction::Start {
-                foreground,
-                socket,
-            } => commands::daemon::start(foreground, socket).await,
+            DaemonAction::Start { foreground, socket } => {
+                commands::daemon::start(foreground, socket).await
+            }
             DaemonAction::Stop => commands::daemon::stop().await,
             DaemonAction::Status => commands::daemon::status().await,
         },
+        Commands::Completions { shell } => {
+            clap_complete::generate(
+                shell,
+                &mut Cli::command(),
+                "phantom",
+                &mut std::io::stdout(),
+            );
+            Ok(())
+        }
     };
 
     if let Err(e) = result {
