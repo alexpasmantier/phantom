@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -71,7 +71,9 @@ impl Phantom {
 
     /// List all active sessions.
     pub fn sessions(&self) -> crate::Result<Vec<SessionInfo>> {
-        let resp = self.inner.send_command(|reply| EngineCommand::ListSessions { reply })?;
+        let resp = self
+            .inner
+            .send_command(|reply| EngineCommand::ListSessions { reply })?;
         match response_to_result(resp)? {
             Some(ResponseData::Sessions(s)) => Ok(s),
             _ => Ok(Vec::new()),

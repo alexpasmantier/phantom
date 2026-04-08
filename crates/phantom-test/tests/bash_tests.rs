@@ -93,8 +93,14 @@ fn list_sessions() {
 
     let sessions = pt.sessions().unwrap();
     let names: Vec<&str> = sessions.iter().map(|s| s.name.as_str()).collect();
-    assert!(names.contains(&"list_a"), "should contain list_a: {names:?}");
-    assert!(names.contains(&"list_b"), "should contain list_b: {names:?}");
+    assert!(
+        names.contains(&"list_a"),
+        "should contain list_a: {names:?}"
+    );
+    assert!(
+        names.contains(&"list_b"),
+        "should contain list_b: {names:?}"
+    );
 }
 
 #[test]
@@ -343,7 +349,11 @@ fn region_screenshot() {
     // Region: only rows 0-2
     let partial = s.screenshot_region(0, 0, 2, 79).unwrap();
     let rows: Vec<_> = partial.raw().screen.iter().collect();
-    assert!(rows.len() <= 3, "region should have at most 3 rows, got {}", rows.len());
+    assert!(
+        rows.len() <= 3,
+        "region should have at most 3 rows, got {}",
+        rows.len()
+    );
 
     // Narrow column region
     let narrow = s.screenshot_region(0, 0, 23, 9).unwrap();

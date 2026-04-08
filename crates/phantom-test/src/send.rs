@@ -18,14 +18,17 @@ impl<'a> SendBuilder<'a> {
     pub fn type_text(self, text: &str) -> crate::Result<()> {
         let text = text.to_string();
         let name = self.session.name.clone();
-        let resp = self.session.inner.send_command(|reply| EngineCommand::SendInput {
-            session: name,
-            action: InputAction::Type {
-                text,
-                delay_ms: None,
-            },
-            reply,
-        })?;
+        let resp = self
+            .session
+            .inner
+            .send_command(|reply| EngineCommand::SendInput {
+                session: name,
+                action: InputAction::Type {
+                    text,
+                    delay_ms: None,
+                },
+                reply,
+            })?;
         response_to_result(resp)?;
         Ok(())
     }
@@ -34,14 +37,17 @@ impl<'a> SendBuilder<'a> {
     pub fn type_text_slow(self, text: &str, delay_ms: u64) -> crate::Result<()> {
         let text = text.to_string();
         let name = self.session.name.clone();
-        let resp = self.session.inner.send_command(|reply| EngineCommand::SendInput {
-            session: name,
-            action: InputAction::Type {
-                text,
-                delay_ms: Some(delay_ms),
-            },
-            reply,
-        })?;
+        let resp = self
+            .session
+            .inner
+            .send_command(|reply| EngineCommand::SendInput {
+                session: name,
+                action: InputAction::Type {
+                    text,
+                    delay_ms: Some(delay_ms),
+                },
+                reply,
+            })?;
         response_to_result(resp)?;
         Ok(())
     }
@@ -49,13 +55,16 @@ impl<'a> SendBuilder<'a> {
     /// Send a single key (e.g., "escape", "enter", "ctrl-c", "f1").
     pub fn key(self, key: &str) -> crate::Result<()> {
         let name = self.session.name.clone();
-        let resp = self.session.inner.send_command(|reply| EngineCommand::SendInput {
-            session: name,
-            action: InputAction::Key {
-                keys: vec![key.to_string()],
-            },
-            reply,
-        })?;
+        let resp = self
+            .session
+            .inner
+            .send_command(|reply| EngineCommand::SendInput {
+                session: name,
+                action: InputAction::Key {
+                    keys: vec![key.to_string()],
+                },
+                reply,
+            })?;
         response_to_result(resp)?;
         Ok(())
     }
@@ -64,11 +73,14 @@ impl<'a> SendBuilder<'a> {
     pub fn keys(self, keys: &[&str]) -> crate::Result<()> {
         let name = self.session.name.clone();
         let keys: Vec<String> = keys.iter().map(|s| s.to_string()).collect();
-        let resp = self.session.inner.send_command(|reply| EngineCommand::SendInput {
-            session: name,
-            action: InputAction::Key { keys },
-            reply,
-        })?;
+        let resp = self
+            .session
+            .inner
+            .send_command(|reply| EngineCommand::SendInput {
+                session: name,
+                action: InputAction::Key { keys },
+                reply,
+            })?;
         response_to_result(resp)?;
         Ok(())
     }
@@ -77,11 +89,14 @@ impl<'a> SendBuilder<'a> {
     pub fn paste(self, text: &str) -> crate::Result<()> {
         let text = text.to_string();
         let name = self.session.name.clone();
-        let resp = self.session.inner.send_command(|reply| EngineCommand::SendInput {
-            session: name,
-            action: InputAction::Paste { text },
-            reply,
-        })?;
+        let resp = self
+            .session
+            .inner
+            .send_command(|reply| EngineCommand::SendInput {
+                session: name,
+                action: InputAction::Paste { text },
+                reply,
+            })?;
         response_to_result(resp)?;
         Ok(())
     }
@@ -90,11 +105,14 @@ impl<'a> SendBuilder<'a> {
     pub fn mouse(self, spec: &str) -> crate::Result<()> {
         let spec = spec.to_string();
         let name = self.session.name.clone();
-        let resp = self.session.inner.send_command(|reply| EngineCommand::SendInput {
-            session: name,
-            action: InputAction::Mouse { spec },
-            reply,
-        })?;
+        let resp = self
+            .session
+            .inner
+            .send_command(|reply| EngineCommand::SendInput {
+                session: name,
+                action: InputAction::Mouse { spec },
+                reply,
+            })?;
         response_to_result(resp)?;
         Ok(())
     }

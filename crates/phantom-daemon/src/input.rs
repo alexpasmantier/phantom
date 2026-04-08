@@ -9,10 +9,10 @@ pub fn type_text(session: &mut Session, text: &str, delay_ms: Option<u64>) -> Re
     for ch in text.chars() {
         let bytes = ch.to_string().into_bytes();
         session.pty.write(&bytes)?;
-        if let Some(delay) = delay_ms {
-            if delay > 0 {
-                std::thread::sleep(std::time::Duration::from_millis(delay));
-            }
+        if let Some(delay) = delay_ms
+            && delay > 0
+        {
+            std::thread::sleep(std::time::Duration::from_millis(delay));
         }
     }
     Ok(())
@@ -27,16 +27,13 @@ pub fn send_key(session: &mut Session, key_spec: &str) -> Result<()> {
         .set_options_from_terminal(&session.terminal);
 
     let mut event = libghostty_vt::key::Event::new()?;
-    event
-        .set_key(key)
-        .set_mods(mods)
-        .set_action(Action::Press);
+    event.set_key(key).set_mods(mods).set_action(Action::Press);
 
     // Set UTF-8 codepoint for character keys without modifiers
-    if mods.is_empty() {
-        if let Some(ch) = key_to_char(key) {
-            event.set_utf8(Some(ch.to_string()));
-        }
+    if mods.is_empty()
+        && let Some(ch) = key_to_char(key)
+    {
+        event.set_utf8(Some(ch.to_string()));
     }
 
     let mut buf = Vec::new();
@@ -131,10 +128,9 @@ pub fn send_mouse(session: &mut Session, spec: &str) -> Result<()> {
 fn parse_key_spec(spec: &str) -> Result<(Key, Mods)> {
     let parts: Vec<&str> = spec.split('-').collect();
     let mut mods = Mods::empty();
-    let key_str;
 
-    if parts.len() == 1 {
-        key_str = parts[0];
+    let key_str = if parts.len() == 1 {
+        parts[0]
     } else {
         for &modifier in &parts[..parts.len() - 1] {
             match modifier.to_lowercase().as_str() {
@@ -145,8 +141,8 @@ fn parse_key_spec(spec: &str) -> Result<(Key, Mods)> {
                 _ => bail!("Unknown modifier: {modifier}"),
             }
         }
-        key_str = parts[parts.len() - 1];
-    }
+        parts[parts.len() - 1]
+    };
 
     let key = match key_str.to_lowercase().as_str() {
         "enter" | "return" | "cr" => Key::Enter,

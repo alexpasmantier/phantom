@@ -5,6 +5,7 @@ use phantom_core::types::SessionInfo;
 use crate::daemon_ctl;
 use crate::output::OutputMode;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn execute(
     session: Option<String>,
     cols: u16,
@@ -59,6 +60,9 @@ fn print_session_info(info: &SessionInfo, output: OutputMode) {
     if output.is_json() {
         println!("{}", serde_json::to_string(info).unwrap());
     } else {
-        println!("Session '{}' started (PID {}, {}x{})", info.name, info.pid, info.cols, info.rows);
+        println!(
+            "Session '{}' started (PID {}, {}x{})",
+            info.name, info.pid, info.cols, info.rows
+        );
     }
 }

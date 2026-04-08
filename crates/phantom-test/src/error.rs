@@ -45,21 +45,17 @@ impl From<anyhow::Error> for PhantomError {
 
 pub type Result<T> = std::result::Result<T, PhantomError>;
 
-pub(crate) fn response_to_result(resp: Response) -> Result<Option<phantom_core::protocol::ResponseData>> {
+pub(crate) fn response_to_result(
+    resp: Response,
+) -> Result<Option<phantom_core::protocol::ResponseData>> {
     match resp {
         Response::Ok { data } => Ok(data),
-        Response::Error { code, message } => {
-            Err(match code {
-                phantom_core::exit_codes::SESSION_NOT_FOUND => {
-                    PhantomError::SessionNotFound(message)
-                }
-                phantom_core::exit_codes::SESSION_COLLISION => {
-                    PhantomError::SessionCollision(message)
-                }
-                phantom_core::exit_codes::WAIT_TIMEOUT => PhantomError::WaitTimeout,
-                phantom_core::exit_codes::PROCESS_EXITED => PhantomError::ProcessExited,
-                _ => PhantomError::Engine { code, message },
-            })
-        }
+        Response::Error { code, message } => Err(match code {
+            phantom_core::exit_codes::SESSION_NOT_FOUND => PhantomError::SessionNotFound(message),
+            phantom_core::exit_codes::SESSION_COLLISION => PhantomError::SessionCollision(message),
+            phantom_core::exit_codes::WAIT_TIMEOUT => PhantomError::WaitTimeout,
+            phantom_core::exit_codes::PROCESS_EXITED => PhantomError::ProcessExited,
+            _ => PhantomError::Engine { code, message },
+        }),
     }
 }

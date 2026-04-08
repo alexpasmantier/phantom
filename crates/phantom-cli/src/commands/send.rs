@@ -28,9 +28,7 @@ pub async fn execute(
     };
 
     let mut conn = daemon_ctl::ensure_daemon().await?;
-    let resp = conn
-        .send(&Request::SendInput { session, action })
-        .await?;
+    let resp = conn.send(&Request::SendInput { session, action }).await?;
 
     match resp {
         Response::Ok { .. } => {}

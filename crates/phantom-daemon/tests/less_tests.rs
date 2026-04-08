@@ -34,14 +34,8 @@ fn test_less_view_content() {
     assert_ok(&h.wait_for_text("less_view", "Line 1:", 10000));
 
     let text = h.screenshot_text("less_view");
-    assert!(
-        text.contains("Line 1:"),
-        "should show first line:\n{text}"
-    );
-    assert!(
-        text.contains("Line 2:"),
-        "should show second line:\n{text}"
-    );
+    assert!(text.contains("Line 1:"), "should show first line:\n{text}");
+    assert!(text.contains("Line 2:"), "should show second line:\n{text}");
     // Line 50 should NOT be visible yet (first screenful is ~23 lines)
     assert!(
         !text.contains("Line 50:"),

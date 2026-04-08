@@ -1,7 +1,10 @@
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::phantom::{Phantom, PhantomInner};
+use crate::phantom::Phantom;
+#[cfg(feature = "monitor")]
+use crate::phantom::PhantomInner;
+#[cfg(feature = "monitor")]
+use std::sync::Arc;
 
 type TestFn = Box<dyn FnOnce(&Phantom) -> crate::Result<()> + Send>;
 
@@ -13,6 +16,7 @@ pub enum TestResult {
 }
 
 /// Event sent from the test thread to the monitor.
+#[cfg(feature = "monitor")]
 pub(crate) enum RunnerEvent {
     TestStarted(usize),
     TestFinished(usize, TestResult),
@@ -26,6 +30,12 @@ pub(crate) enum RunnerEvent {
 pub struct TestRunner {
     tests: Vec<(String, TestFn)>,
     monitor: Option<bool>,
+}
+
+impl Default for TestRunner {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TestRunner {
@@ -56,8 +66,7 @@ impl TestRunner {
     /// Run all tests and exit with the appropriate code.
     pub fn run(self) -> ! {
         let use_monitor = self.monitor.unwrap_or_else(|| {
-            std::env::args().any(|a| a == "--monitor")
-                || std::env::var("PHANTOM_MONITOR").is_ok()
+            std::env::args().any(|a| a == "--monitor") || std::env::var("PHANTOM_MONITOR").is_ok()
         });
 
         #[cfg(feature = "monitor")]
@@ -155,6 +164,7 @@ fn run_headless(tests: Vec<(String, TestFn)>) -> ! {
 }
 
 /// Run tests on a background thread, sending events via a channel.
+#[cfg(feature = "monitor")]
 pub(crate) fn run_tests_on_thread(
     tests: Vec<(String, TestFn)>,
     event_tx: crossbeam_channel::Sender<RunnerEvent>,

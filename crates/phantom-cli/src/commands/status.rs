@@ -7,9 +7,7 @@ use crate::output::OutputMode;
 
 pub async fn execute(session: String, output: OutputMode) -> Result<()> {
     let mut conn = daemon_ctl::ensure_daemon().await?;
-    let resp = conn
-        .send(&Request::GetStatus { session })
-        .await?;
+    let resp = conn.send(&Request::GetStatus { session }).await?;
 
     match resp {
         Response::Ok { data } => {

@@ -54,9 +54,7 @@ pub async fn execute(
         conditions.push(WaitCondition::CursorVisible(false));
     }
     if process_exit {
-        conditions.push(WaitCondition::ProcessExited {
-            exit_code: exit_code,
-        });
+        conditions.push(WaitCondition::ProcessExited { exit_code });
     }
     if changed {
         conditions.push(WaitCondition::ScreenChanged);

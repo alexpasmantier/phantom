@@ -5,9 +5,7 @@ use crate::daemon_ctl;
 
 pub async fn execute(session: String) -> Result<()> {
     let mut conn = daemon_ctl::ensure_daemon().await?;
-    let resp = conn
-        .send(&Request::GetOutput { session })
-        .await?;
+    let resp = conn.send(&Request::GetOutput { session }).await?;
 
     match resp {
         Response::Ok { data } => {

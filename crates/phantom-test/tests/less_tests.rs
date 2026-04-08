@@ -29,8 +29,14 @@ fn less_view_content() {
     s.wait().text("Line 1:").timeout_ms(10000).until().unwrap();
 
     let screen = s.screenshot().unwrap();
-    assert!(screen.contains("Line 1:"), "should show first line:\n{screen}");
-    assert!(screen.contains("Line 2:"), "should show second line:\n{screen}");
+    assert!(
+        screen.contains("Line 1:"),
+        "should show first line:\n{screen}"
+    );
+    assert!(
+        screen.contains("Line 2:"),
+        "should show second line:\n{screen}"
+    );
     assert!(
         !screen.contains("Line 50:"),
         "should not show line 50 yet:\n{screen}"

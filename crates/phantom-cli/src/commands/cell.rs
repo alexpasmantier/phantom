@@ -6,9 +6,7 @@ use crate::output::OutputMode;
 
 pub async fn execute(session: String, x: u16, y: u16, output: OutputMode) -> Result<()> {
     let mut conn = daemon_ctl::ensure_daemon().await?;
-    let resp = conn
-        .send(&Request::GetCell { session, x, y })
-        .await?;
+    let resp = conn.send(&Request::GetCell { session, x, y }).await?;
 
     match resp {
         Response::Ok { data } => {

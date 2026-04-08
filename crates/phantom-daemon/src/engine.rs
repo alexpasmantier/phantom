@@ -139,16 +139,16 @@ impl Engine {
                         }
                     }
                     token => {
-                        if let Some(session_name) = self.token_to_session.get(&token).cloned() {
-                            if let Some(session) = self.sessions.get_mut(&session_name) {
-                                loop {
-                                    match session.pty.read(&mut read_buf) {
-                                        Ok(0) => break,
-                                        Ok(n) => {
-                                            session.process_pty_output(&read_buf[..n]);
-                                        }
-                                        Err(_) => break,
+                        if let Some(session_name) = self.token_to_session.get(&token).cloned()
+                            && let Some(session) = self.sessions.get_mut(&session_name)
+                        {
+                            loop {
+                                match session.pty.read(&mut read_buf) {
+                                    Ok(0) => break,
+                                    Ok(n) => {
+                                        session.process_pty_output(&read_buf[..n]);
                                     }
+                                    Err(_) => break,
                                 }
                             }
                         }
@@ -173,8 +173,16 @@ impl Engine {
                 scrollback,
                 reply,
             } => {
-                let resp =
-                    self.create_session(name, &command, &args, &env, cwd.as_deref(), cols, rows, scrollback);
+                let resp = self.create_session(
+                    name,
+                    &command,
+                    &args,
+                    &env,
+                    cwd.as_deref(),
+                    cols,
+                    rows,
+                    scrollback,
+                );
                 let _ = reply.send(resp);
             }
             EngineCommand::SendInput {
@@ -257,6 +265,7 @@ impl Engine {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn create_session(
         &mut self,
         name: String,
@@ -275,7 +284,16 @@ impl Engine {
             );
         }
 
-        match Session::new(name.clone(), command, args, env, cwd, cols, rows, scrollback) {
+        match Session::new(
+            name.clone(),
+            command,
+            args,
+            env,
+            cwd,
+            cols,
+            rows,
+            scrollback,
+        ) {
             Ok(session) => {
                 let token = Token(self.next_token);
                 self.next_token += 1;
@@ -383,11 +401,11 @@ impl Engine {
         }
 
         // Check immediately
-        if let Some(session) = self.sessions.get_mut(&session_name) {
-            if evaluate_conditions(session, &conditions) {
-                let _ = reply.send(Response::ok());
-                return;
-            }
+        if let Some(session) = self.sessions.get_mut(&session_name)
+            && evaluate_conditions(session, &conditions)
+        {
+            let _ = reply.send(Response::ok());
+            return;
         }
 
         self.pending_waits.push(PendingWait {

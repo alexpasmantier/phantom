@@ -120,11 +120,13 @@ impl Session {
 
     /// Get scrollback buffer content.
     pub fn scrollback(&self, lines: Option<u32>) -> crate::Result<String> {
-        let resp = self.inner.send_command(|reply| EngineCommand::GetScrollback {
-            session: self.name.clone(),
-            lines,
-            reply,
-        })?;
+        let resp = self
+            .inner
+            .send_command(|reply| EngineCommand::GetScrollback {
+                session: self.name.clone(),
+                lines,
+                reply,
+            })?;
         match response_to_result(resp)? {
             Some(ResponseData::Text(text)) => Ok(text),
             _ => panic!("unexpected response from get_scrollback"),
@@ -171,22 +173,26 @@ impl Session {
 
     /// Kill the session (sends SIGTERM).
     pub fn kill(&self) -> crate::Result<()> {
-        let resp = self.inner.send_command(|reply| EngineCommand::KillSession {
-            session: self.name.clone(),
-            signal: None,
-            reply,
-        })?;
+        let resp = self
+            .inner
+            .send_command(|reply| EngineCommand::KillSession {
+                session: self.name.clone(),
+                signal: None,
+                reply,
+            })?;
         response_to_result(resp)?;
         Ok(())
     }
 
     /// Kill the session with a specific signal number.
     pub fn kill_with_signal(&self, signal: i32) -> crate::Result<()> {
-        let resp = self.inner.send_command(|reply| EngineCommand::KillSession {
-            session: self.name.clone(),
-            signal: Some(signal),
-            reply,
-        })?;
+        let resp = self
+            .inner
+            .send_command(|reply| EngineCommand::KillSession {
+                session: self.name.clone(),
+                signal: Some(signal),
+                reply,
+            })?;
         response_to_result(resp)?;
         Ok(())
     }

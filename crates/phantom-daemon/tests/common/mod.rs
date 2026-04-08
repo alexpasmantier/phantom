@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -8,8 +10,7 @@ use mio::Waker;
 use phantom_core::exit_codes;
 use phantom_core::protocol::{Response, ResponseData};
 use phantom_core::types::{
-    CellData, CursorInfo, InputAction, ScreenContent, ScreenFormat, SessionInfo, SessionStatus,
-    WaitCondition,
+    CellData, CursorInfo, InputAction, ScreenContent, ScreenFormat, SessionInfo, WaitCondition,
 };
 use phantom_daemon::engine::{Engine, EngineCommand};
 
@@ -56,10 +57,7 @@ impl TestHarness {
     }
 
     /// Send a command to the engine and wait for its response.
-    fn send_command(
-        &self,
-        make_cmd: impl FnOnce(Sender<Response>) -> EngineCommand,
-    ) -> Response {
+    fn send_command(&self, make_cmd: impl FnOnce(Sender<Response>) -> EngineCommand) -> Response {
         let (reply_tx, reply_rx) = crossbeam_channel::bounded(1);
         let cmd = make_cmd(reply_tx);
         self.cmd_tx.send(cmd).unwrap();
@@ -98,10 +96,7 @@ impl TestHarness {
             name: name.to_string(),
             command: command.to_string(),
             args,
-            env: vec![
-                ("LANG".into(), "C".into()),
-                ("LC_ALL".into(), "C".into()),
-            ],
+            env: vec![("LANG".into(), "C".into()), ("LC_ALL".into(), "C".into())],
             cwd: None,
             cols,
             rows,
@@ -428,7 +423,10 @@ pub fn assert_ok(resp: &Response) {
 pub fn assert_error(resp: &Response, expected_code: i32) {
     match resp {
         Response::Error { code, .. } => {
-            assert_eq!(*code, expected_code, "expected error code {expected_code}, got {code}");
+            assert_eq!(
+                *code, expected_code,
+                "expected error code {expected_code}, got {code}"
+            );
         }
         Response::Ok { .. } => {
             panic!("expected Error(code={expected_code}), got Ok")

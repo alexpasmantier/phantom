@@ -8,11 +8,7 @@ pub enum OutputMode {
 
 impl OutputMode {
     pub fn detect(force_json: bool, force_human: bool) -> Self {
-        if force_json {
-            Self::Json
-        } else if force_human {
-            Self::Human
-        } else if std::io::stdout().is_terminal() {
+        if force_human || (!force_json && std::io::stdout().is_terminal()) {
             Self::Human
         } else {
             Self::Json

@@ -101,9 +101,7 @@ async fn dispatch_request(
             session,
             reply: reply_tx,
         },
-        Request::GetScrollback {
-            session, lines, ..
-        } => EngineCommand::GetScrollback {
+        Request::GetScrollback { session, lines, .. } => EngineCommand::GetScrollback {
             session,
             lines,
             reply: reply_tx,

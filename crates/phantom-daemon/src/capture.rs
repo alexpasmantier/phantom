@@ -21,11 +21,11 @@ pub fn capture_screen(
 
     while let Some(row) = row_it.next() {
         // Region filter: skip rows outside the region
-        if let Some((top, _, bottom, _)) = region {
-            if row_idx < top || row_idx > bottom {
-                row_idx += 1;
-                continue;
-            }
+        if let Some((top, _, bottom, _)) = region
+            && (row_idx < top || row_idx > bottom)
+        {
+            row_idx += 1;
+            continue;
         }
 
         let mut text = String::new();

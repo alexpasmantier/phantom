@@ -139,8 +139,14 @@ fn test_list_sessions() {
 
     let sessions = h.list_sessions();
     let names: Vec<&str> = sessions.iter().map(|s| s.name.as_str()).collect();
-    assert!(names.contains(&"list_a"), "should contain list_a: {names:?}");
-    assert!(names.contains(&"list_b"), "should contain list_b: {names:?}");
+    assert!(
+        names.contains(&"list_a"),
+        "should contain list_a: {names:?}"
+    );
+    assert!(
+        names.contains(&"list_b"),
+        "should contain list_b: {names:?}"
+    );
 }
 
 #[test]
@@ -191,7 +197,10 @@ fn test_scrollback() {
     assert_ok(&h.wait_for_stable("scroll", 300, 5000));
 
     // Generate enough output to push content into scrollback (> 24 lines)
-    h.send_type("scroll", "for i in $(seq 1 50); do echo \"scrollback_line_$i\"; done\n");
+    h.send_type(
+        "scroll",
+        "for i in $(seq 1 50); do echo \"scrollback_line_$i\"; done\n",
+    );
     assert_ok(&h.wait_for_text("scroll", "scrollback_line_50", 5000));
 
     // The first lines should have scrolled off the visible screen into scrollback
@@ -241,13 +250,7 @@ fn test_mouse_input() {
 #[test]
 fn test_output_capture() {
     let h = TestHarness::new();
-    assert_ok(&h.create_session(
-        "output",
-        "bash",
-        &["-c", "echo the_final_output"],
-        80,
-        24,
-    ));
+    assert_ok(&h.create_session("output", "bash", &["-c", "echo the_final_output"], 80, 24));
 
     // Wait for the process to exit
     assert_ok(&h.wait_for_exit("output", 5000));
@@ -315,8 +318,16 @@ fn test_region_screenshot() {
     // Region screenshot: only rows 0-2
     let partial = h.screenshot_region("region", 0, 0, 2, 79);
     // Should have exactly 3 rows
-    let non_skipped: Vec<_> = partial.screen.iter().filter(|r| !r.text.is_empty() || r.row <= 2).collect();
-    assert!(non_skipped.len() <= 3, "region should have at most 3 rows, got {}", non_skipped.len());
+    let non_skipped: Vec<_> = partial
+        .screen
+        .iter()
+        .filter(|r| !r.text.is_empty() || r.row <= 2)
+        .collect();
+    assert!(
+        non_skipped.len() <= 3,
+        "region should have at most 3 rows, got {}",
+        non_skipped.len()
+    );
 
     // Region with column filter
     let narrow = h.screenshot_region("region", 0, 0, 23, 9);
@@ -542,9 +553,7 @@ fn test_wait_process_exit_with_code() {
     // Wait for exit with specific code
     let resp = h.wait_with_conditions(
         "exitcode",
-        vec![WaitCondition::ProcessExited {
-            exit_code: Some(7),
-        }],
+        vec![WaitCondition::ProcessExited { exit_code: Some(7) }],
         5000,
     );
     assert_ok(&resp);

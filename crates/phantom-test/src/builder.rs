@@ -28,10 +28,7 @@ impl<'a> SessionBuilder<'a> {
             cols: 80,
             rows: 24,
             scrollback: 1000,
-            env: vec![
-                ("LANG".into(), "C".into()),
-                ("LC_ALL".into(), "C".into()),
-            ],
+            env: vec![("LANG".into(), "C".into()), ("LC_ALL".into(), "C".into())],
             cwd: None,
         }
     }
@@ -91,8 +88,10 @@ impl<'a> SessionBuilder<'a> {
             .name
             .unwrap_or_else(|| self.phantom.next_session_name());
 
-        let resp = self.phantom.inner.send_command(|reply| {
-            EngineCommand::CreateSession {
+        let resp = self
+            .phantom
+            .inner
+            .send_command(|reply| EngineCommand::CreateSession {
                 name: name.clone(),
                 command: self.command,
                 args: self.args,
@@ -102,8 +101,7 @@ impl<'a> SessionBuilder<'a> {
                 rows: self.rows,
                 scrollback: self.scrollback,
                 reply,
-            }
-        })?;
+            })?;
 
         match response_to_result(resp)? {
             Some(ResponseData::Session(_)) => {

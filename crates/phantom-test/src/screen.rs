@@ -65,6 +65,10 @@ impl std::fmt::Display for Screen {
 
 impl std::fmt::Debug for Screen {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Screen({} x {}):\n{}", self.inner.cols, self.inner.rows, self.text)
+        write!(
+            f,
+            "Screen({} x {}):\n{}",
+            self.inner.cols, self.inner.rows, self.text
+        )
     }
 }

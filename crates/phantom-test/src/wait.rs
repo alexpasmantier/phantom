@@ -61,8 +61,9 @@ impl<'a> WaitBuilder<'a> {
 
     /// Wait for process to exit with a specific code.
     pub fn exit_code(mut self, code: i32) -> Self {
-        self.conditions
-            .push(WaitCondition::ProcessExited { exit_code: Some(code) });
+        self.conditions.push(WaitCondition::ProcessExited {
+            exit_code: Some(code),
+        });
         self
     }
 

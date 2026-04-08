@@ -11,6 +11,7 @@ use crossterm::terminal::{
 use phantom_core::protocol::ResponseData;
 use phantom_core::types::ScreenFormat;
 use phantom_daemon::engine::EngineCommand;
+use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Color, Style, Stylize};
@@ -19,8 +20,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{
     Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
 };
-use ratatui::Terminal;
-use throbber_widgets_tui::{Throbber, ThrobberState, BRAILLE_SIX};
+use throbber_widgets_tui::{BRAILLE_SIX, Throbber, ThrobberState};
 
 use crate::phantom::PhantomInner;
 use crate::runner::{RunnerEvent, TestResult, format_duration, run_tests_on_thread};
@@ -250,7 +250,7 @@ fn draw(frame: &mut ratatui::Frame, state: &mut TuiState) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // header
-            Constraint::Min(6),   // content
+            Constraint::Min(6),    // content
             Constraint::Length(3), // progress block
         ])
         .split(size);
@@ -453,8 +453,7 @@ fn draw_tests(frame: &mut ratatui::Frame, area: Rect, state: &mut TuiState) {
             .position(offset)
             .viewport_content_length(visible_height);
         frame.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .style(Style::default().fg(DIMMER)),
+            Scrollbar::new(ScrollbarOrientation::VerticalRight).style(Style::default().fg(DIMMER)),
             area.inner(Margin {
                 vertical: 1,
                 horizontal: 0,
@@ -495,7 +494,12 @@ fn draw_footer(frame: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         .split(inner);
 
     // Row 1: gradient progress bar
-    let bar_line = gradient_bar(ratio, rows[0].width as usize, state.failed() > 0, state.done);
+    let bar_line = gradient_bar(
+        ratio,
+        rows[0].width as usize,
+        state.failed() > 0,
+        state.done,
+    );
     frame.render_widget(Paragraph::new(bar_line), rows[0]);
 
     // Row 2: status text
@@ -513,10 +517,7 @@ fn draw_footer(frame: &mut ratatui::Frame, area: Rect, state: &TuiState) {
                 Span::styled("✗ ", Style::default().fg(FAIL).bold()),
                 Span::styled(format!("{passed} passed"), Style::default().fg(PASS)),
                 Span::styled(" · ", Style::default().fg(DIMMER)),
-                Span::styled(
-                    format!("{failed} failed"),
-                    Style::default().fg(FAIL).bold(),
-                ),
+                Span::styled(format!("{failed} failed"), Style::default().fg(FAIL).bold()),
                 Span::styled(format!(" / {total}"), Style::default().fg(DIM)),
             ]
         }
@@ -610,10 +611,7 @@ fn gradient_bar(ratio: f64, width: usize, has_failures: bool, done: bool) -> Lin
                 Style::default().fg(color).bg(track_color),
             ));
         } else {
-            spans.push(Span::styled(
-                "░",
-                Style::default().fg(track_color),
-            ));
+            spans.push(Span::styled("░", Style::default().fg(track_color)));
         }
     }
 

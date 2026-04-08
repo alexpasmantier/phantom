@@ -5,9 +5,7 @@ use crate::daemon_ctl;
 
 pub async fn execute(session: String, signal: Option<i32>) -> Result<()> {
     let mut conn = daemon_ctl::ensure_daemon().await?;
-    let resp = conn
-        .send(&Request::KillSession { session, signal })
-        .await?;
+    let resp = conn.send(&Request::KillSession { session, signal }).await?;
 
     match resp {
         Response::Ok { .. } => {}

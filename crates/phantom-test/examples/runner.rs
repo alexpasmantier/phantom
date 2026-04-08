@@ -199,10 +199,7 @@ fn main() {
             if !has_command("vim") {
                 return Ok(());
             }
-            let s = pt
-                .run("vim")
-                .args(&["--clean", "-u", "NONE"])
-                .start()?;
+            let s = pt.run("vim").args(&["--clean", "-u", "NONE"]).start()?;
             s.wait().text("~").timeout_ms(10000).until()?;
             let screen = s.screenshot()?;
             assert!(screen.text().lines().filter(|l| l.starts_with('~')).count() > 5);
@@ -212,10 +209,7 @@ fn main() {
             if !has_command("vim") {
                 return Ok(());
             }
-            let s = pt
-                .run("vim")
-                .args(&["--clean", "-u", "NONE"])
-                .start()?;
+            let s = pt.run("vim").args(&["--clean", "-u", "NONE"]).start()?;
             s.wait().text("~").timeout_ms(10000).until()?;
             s.send().type_text("iHello")?;
             s.wait().text("Hello").until()?;
