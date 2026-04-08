@@ -1,0 +1,43 @@
+name: Bug Report
+description: Report a bug in phantom
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal commands or code to reproduce the issue.
+      placeholder: |
+        phantom run -s test -- my-app
+        phantom wait -s test --text "Ready" --timeout 5000
+        # ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Rust version, Zig version, phantom version.
+      placeholder: |
+        - OS: macOS 15.2 / Ubuntu 24.04
+        - phantom --version: 0.1.0
+        - rustc --version: ...
+        - zig version: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Any relevant output. Run the daemon with `RUST_LOG=phantom_daemon=debug phantom daemon start --foreground` for verbose logs.
+      render: shell

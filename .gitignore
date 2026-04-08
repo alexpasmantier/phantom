@@ -2,3 +2,16 @@
 .fastembed_cache/
 *.sw?
 CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Environment
+.env
+.env.*
