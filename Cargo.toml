@@ -1,6 +1,7 @@
 [workspace]
 members = ["crates/*"]
 resolver = "3"
+exclude = [".fastembed_cache"]
 
 [workspace.package]
 version = "0.1.0"
