@@ -60,15 +60,9 @@ impl SplitMode {
 /// On success returns the human-friendly description of what was opened.
 /// Returns an error if not running in tmux, if `tmux` is not on PATH, or if
 /// the spawn itself fails.
-pub fn open_viewer(
-    session_name: &str,
-    socket_path: &Path,
-    mode: SplitMode,
-) -> Result<String> {
+pub fn open_viewer(session_name: &str, socket_path: &Path, mode: SplitMode) -> Result<String> {
     if !in_tmux() {
-        bail!(
-            "not running inside tmux (set $TMUX or use phantom_screenshot for in-chat viewing)"
-        );
+        bail!("not running inside tmux (set $TMUX or use phantom_screenshot for in-chat viewing)");
     }
 
     let phantom_cli = locate_phantom_cli()?;

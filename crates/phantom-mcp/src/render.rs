@@ -134,7 +134,15 @@ fn draw_cell(img: &mut RgbaImage, f: &Font, m: &Metrics, x: u32, y: u32, cell: &
     }
 }
 
-fn draw_glyph(img: &mut RgbaImage, f: &Font, x: u32, y: u32, ch: char, color: Rgba<u8>, m: &Metrics) {
+fn draw_glyph(
+    img: &mut RgbaImage,
+    f: &Font,
+    x: u32,
+    y: u32,
+    ch: char,
+    color: Rgba<u8>,
+    m: &Metrics,
+) {
     let (gm, bitmap) = f.rasterize(ch, FONT_SIZE);
     if gm.width == 0 || gm.height == 0 {
         return;
@@ -291,7 +299,10 @@ mod tests {
     fn parse_hex_color() {
         assert_eq!(parse_color(Some("#ff0000")), Some(Rgba([255, 0, 0, 255])));
         assert_eq!(parse_color(Some("#00ff00")), Some(Rgba([0, 255, 0, 255])));
-        assert_eq!(parse_color(Some("#1e2c3d")), Some(Rgba([0x1e, 0x2c, 0x3d, 255])));
+        assert_eq!(
+            parse_color(Some("#1e2c3d")),
+            Some(Rgba([0x1e, 0x2c, 0x3d, 255]))
+        );
     }
 
     #[test]

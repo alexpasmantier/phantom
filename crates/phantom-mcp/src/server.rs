@@ -8,9 +8,7 @@ use phantom_test::{Phantom, PhantomError, Session};
 use rmcp::{
     ErrorData as McpError, ServerHandler,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{
-        CallToolResult, Content, Implementation, ServerCapabilities, ServerInfo,
-    },
+    model::{CallToolResult, Content, Implementation, ServerCapabilities, ServerInfo},
     tool, tool_handler, tool_router,
 };
 use schemars::JsonSchema;
@@ -184,8 +182,8 @@ pub struct PhantomMcpServer {
 
 impl PhantomMcpServer {
     pub fn new() -> anyhow::Result<Self> {
-        let phantom = Phantom::new()
-            .map_err(|e| anyhow::anyhow!("failed to start phantom engine: {e}"))?;
+        let phantom =
+            Phantom::new().map_err(|e| anyhow::anyhow!("failed to start phantom engine: {e}"))?;
         Ok(Self {
             phantom: Arc::new(phantom),
             sessions: Arc::new(Mutex::new(HashMap::new())),
@@ -214,9 +212,9 @@ impl PhantomMcpServer {
 
     async fn get_session(&self, name: &str) -> Result<Arc<Session>, McpError> {
         let map = self.sessions.lock().await;
-        map.get(name).cloned().ok_or_else(|| {
-            McpError::invalid_params(format!("no session named '{name}'"), None)
-        })
+        map.get(name)
+            .cloned()
+            .ok_or_else(|| McpError::invalid_params(format!("no session named '{name}'"), None))
     }
 }
 
@@ -262,13 +260,11 @@ impl PhantomMcpServer {
         ))]))
     }
 
-    #[tool(
-        description = "Send input to a session. `kind`: \
+    #[tool(description = "Send input to a session. `kind`: \
                        `text` (typed characters), \
                        `key` (named key like `enter`, `escape`, `ctrl-c`, `f1`, `up`), \
                        `paste` (bracketed paste), \
-                       `mouse` (e.g. `click:10,5`, `right-click:20,10`, `scroll-up:0,0`)."
-    )]
+                       `mouse` (e.g. `click:10,5`, `right-click:20,10`, `scroll-up:0,0`).")]
     pub async fn phantom_send(
         &self,
         Parameters(args): Parameters<SendArgs>,
@@ -325,9 +321,8 @@ impl PhantomMcpServer {
         // Validate the regex up-front so we can return a clean error rather
         // than panicking inside the wait builder.
         if let Some(ref pattern) = regex {
-            ::regex::Regex::new(pattern).map_err(|e| {
-                McpError::invalid_params(format!("invalid regex: {e}"), None)
-            })?;
+            ::regex::Regex::new(pattern)
+                .map_err(|e| McpError::invalid_params(format!("invalid regex: {e}"), None))?;
         }
 
         // wait blocks on the engine; run it on a blocking worker so we don't
@@ -390,17 +385,17 @@ impl PhantomMcpServer {
         .map_err(|e| McpError::internal_error(format!("wait join failed: {e}"), None))?;
 
         outcome.map_err(to_mcp_err)?;
-        Ok(CallToolResult::success(vec![Content::text("condition met")]))
+        Ok(CallToolResult::success(vec![Content::text(
+            "condition met",
+        )]))
     }
 
-    #[tool(
-        description = "Capture the current screen of a session. \
+    #[tool(description = "Capture the current screen of a session. \
                        `format=text` returns plain text rows joined by newlines. \
                        `format=image` returns a PNG rendering of the terminal — preferred \
                        when you need to visually understand layout, colors, or cursor placement. \
                        `region` (top/left/bottom/right, 0-indexed inclusive) restricts the capture \
-                       to a sub-rectangle of the screen."
-    )]
+                       to a sub-rectangle of the screen.")]
     pub async fn phantom_screenshot(
         &self,
         Parameters(args): Parameters<ScreenshotArgs>,
@@ -432,7 +427,10 @@ impl PhantomMcpServer {
                 )]))
             }
             "image" => {
-                let region_tuple = args.region.as_ref().map(|r| (r.top, r.left, r.bottom, r.right));
+                let region_tuple = args
+                    .region
+                    .as_ref()
+                    .map(|r| (r.top, r.left, r.bottom, r.right));
                 let screen = if let Some((top, left, bottom, right)) = region_tuple {
                     session
                         .screenshot_region_json(top, left, bottom, right)
@@ -445,7 +443,10 @@ impl PhantomMcpServer {
                 })?;
                 use base64::Engine as _;
                 let b64 = base64::engine::general_purpose::STANDARD.encode(&png);
-                Ok(CallToolResult::success(vec![Content::image(b64, "image/png")]))
+                Ok(CallToolResult::success(vec![Content::image(
+                    b64,
+                    "image/png",
+                )]))
             }
             other => Err(McpError::invalid_params(
                 format!("unknown screenshot format '{other}' (expected text or image)"),
@@ -469,10 +470,8 @@ impl PhantomMcpServer {
         ))]))
     }
 
-    #[tool(
-        description = "Inspect a single cell at column `x`, row `y`. \
-                       Returns its grapheme and style attributes (fg/bg/bold/italic/...) as JSON."
-    )]
+    #[tool(description = "Inspect a single cell at column `x`, row `y`. \
+                       Returns its grapheme and style attributes (fg/bg/bold/italic/...) as JSON.")]
     pub async fn phantom_cell(
         &self,
         Parameters(args): Parameters<CellArgs>,
@@ -648,8 +647,6 @@ fn to_mcp_err(e: PhantomError) -> McpError {
         PhantomError::EngineTimeout => {
             McpError::internal_error("engine did not respond".to_string(), None)
         }
-        PhantomError::Internal(e) => {
-            McpError::internal_error(format!("internal: {e}"), None)
-        }
+        PhantomError::Internal(e) => McpError::internal_error(format!("internal: {e}"), None),
     }
 }

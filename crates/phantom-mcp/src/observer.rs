@@ -40,64 +40,6 @@ pub fn resolve_socket_path() -> PathBuf {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Save+restore an env var around a closure so tests don't pollute each
-    /// other. Tests in this module run sequentially because they all touch
-    /// `PHANTOM_MCP_SOCKET`; cargo test serializes within a single test
-    /// binary by default for `#[test]` functions in the same module only via
-    /// the test runner — to be safe we use a mutex.
-    fn with_env_var<F: FnOnce()>(key: &str, value: Option<&str>, f: F) {
-        use std::sync::Mutex;
-        static LOCK: Mutex<()> = Mutex::new(());
-        let _g = LOCK.lock().unwrap();
-
-        let prev = std::env::var(key).ok();
-        // SAFETY: env mutation is guarded by the mutex above; the test runner
-        // may still run other tests in parallel that touch unrelated env vars,
-        // but this key is local to these tests.
-        unsafe {
-            match value {
-                Some(v) => std::env::set_var(key, v),
-                None => std::env::remove_var(key),
-            }
-        }
-        f();
-        unsafe {
-            match prev {
-                Some(v) => std::env::set_var(key, v),
-                None => std::env::remove_var(key),
-            }
-        }
-    }
-
-    #[test]
-    fn resolve_uses_env_override_when_set() {
-        with_env_var("PHANTOM_MCP_SOCKET", Some("/tmp/custom-phantom.sock"), || {
-            assert_eq!(
-                resolve_socket_path(),
-                PathBuf::from("/tmp/custom-phantom.sock")
-            );
-        });
-    }
-
-    #[test]
-    fn resolve_falls_back_when_env_empty() {
-        with_env_var("PHANTOM_MCP_SOCKET", Some(""), || {
-            assert_eq!(resolve_socket_path(), default_socket_path());
-        });
-    }
-
-    #[test]
-    fn resolve_falls_back_when_env_unset() {
-        with_env_var("PHANTOM_MCP_SOCKET", None, || {
-            assert_eq!(resolve_socket_path(), default_socket_path());
-        });
-    }
-}
-
 /// Bind a Unix socket and spawn an accept loop that dispatches each
 /// connection to `phantom_daemon::handler::handle_connection`.
 ///
@@ -144,4 +86,66 @@ pub async fn serve(
     });
 
     Ok(handle)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Save+restore an env var around a closure so tests don't pollute each
+    /// other. Tests in this module run sequentially because they all touch
+    /// `PHANTOM_MCP_SOCKET`; cargo test serializes within a single test
+    /// binary by default for `#[test]` functions in the same module only via
+    /// the test runner — to be safe we use a mutex.
+    fn with_env_var<F: FnOnce()>(key: &str, value: Option<&str>, f: F) {
+        use std::sync::Mutex;
+        static LOCK: Mutex<()> = Mutex::new(());
+        let _g = LOCK.lock().unwrap();
+
+        let prev = std::env::var(key).ok();
+        // SAFETY: env mutation is guarded by the mutex above; the test runner
+        // may still run other tests in parallel that touch unrelated env vars,
+        // but this key is local to these tests.
+        unsafe {
+            match value {
+                Some(v) => std::env::set_var(key, v),
+                None => std::env::remove_var(key),
+            }
+        }
+        f();
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var(key, v),
+                None => std::env::remove_var(key),
+            }
+        }
+    }
+
+    #[test]
+    fn resolve_uses_env_override_when_set() {
+        with_env_var(
+            "PHANTOM_MCP_SOCKET",
+            Some("/tmp/custom-phantom.sock"),
+            || {
+                assert_eq!(
+                    resolve_socket_path(),
+                    PathBuf::from("/tmp/custom-phantom.sock")
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn resolve_falls_back_when_env_empty() {
+        with_env_var("PHANTOM_MCP_SOCKET", Some(""), || {
+            assert_eq!(resolve_socket_path(), default_socket_path());
+        });
+    }
+
+    #[test]
+    fn resolve_falls_back_when_env_unset() {
+        with_env_var("PHANTOM_MCP_SOCKET", None, || {
+            assert_eq!(resolve_socket_path(), default_socket_path());
+        });
+    }
 }

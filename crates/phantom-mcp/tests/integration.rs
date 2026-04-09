@@ -21,10 +21,7 @@ fn has_bash() -> bool {
 }
 
 fn text_of(result: &CallToolResult) -> String {
-    let content = result
-        .content
-        .first()
-        .expect("at least one content block");
+    let content = result.content.first().expect("at least one content block");
     match &content.raw {
         RawContent::Text(t) => t.text.clone(),
         other => panic!("expected text content, got {other:?}"),
@@ -33,10 +30,7 @@ fn text_of(result: &CallToolResult) -> String {
 
 fn image_of(result: &CallToolResult) -> (String, Vec<u8>) {
     use base64::Engine as _;
-    let content = result
-        .content
-        .first()
-        .expect("at least one content block");
+    let content = result.content.first().expect("at least one content block");
     match &content.raw {
         RawContent::Image(img) => {
             let bytes = base64::engine::general_purpose::STANDARD
