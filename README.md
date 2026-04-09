@@ -162,6 +162,28 @@ phantom integration tests
 
 The `--monitor` flag opens a split-screen TUI: test list on the left with pass/fail status, and a live mirror of the terminal session on the right — so you can see exactly what your tests see as they run.
 
+## MCP Server (`phantom-mcp`)
+
+Phantom also ships as an [MCP](https://modelcontextprotocol.io) server, so AI agents (Claude Code, Claude Desktop, Cursor, Zed, …) can drive headless TUI programs over stdio. It embeds the engine in-process — no daemon to manage.
+
+<p align="center">
+  <img src="crates/phantom-mcp/docs/demo.gif" alt="phantom-mcp live in-tmux viewer demo" width="800">
+</p>
+
+When the user is running their MCP client inside **tmux**, the `phantom_show` tool splits the surrounding pane to show a live `phantom monitor` view of the agent's TUI session — the human watches what the agent is doing in real time, in the same terminal, without opening anything.
+
+```bash
+cargo build -p phantom-mcp --release
+```
+
+Then point your MCP client at the binary:
+
+```json
+{ "mcpServers": { "phantom": { "command": "/abs/path/to/target/release/phantom-mcp" } } }
+```
+
+Tools exposed: `phantom_run`, `phantom_send`, `phantom_wait`, `phantom_screenshot` (text or PNG image, with optional region), `phantom_show`, `phantom_cursor`, `phantom_cell`, `phantom_scrollback`, `phantom_output`, `phantom_status`, `phantom_list`, `phantom_resize`, `phantom_kill`. See [`crates/phantom-mcp/README.md`](crates/phantom-mcp/README.md) for the full reference.
+
 ## Exit Codes
 
 | Code | Meaning |
