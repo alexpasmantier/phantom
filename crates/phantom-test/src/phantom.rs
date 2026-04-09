@@ -80,6 +80,15 @@ impl Phantom {
         }
     }
 
+    /// Return the underlying engine command sender and waker so external
+    /// listeners (e.g. an observer Unix socket) can route requests into the
+    /// embedded engine. The returned sender uses the same protocol as the
+    /// phantom daemon's wire format, so it can drive `phantom_daemon::handler`
+    /// directly.
+    pub fn engine_handle(&self) -> (Sender<EngineCommand>, Arc<Waker>) {
+        (self.inner.cmd_tx.clone(), Arc::clone(&self.inner.waker))
+    }
+
     pub(crate) fn next_session_name(&self) -> String {
         let n = self.session_counter.fetch_add(1, Ordering::Relaxed);
         format!("session-{n}")

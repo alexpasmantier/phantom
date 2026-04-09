@@ -90,6 +90,26 @@ impl Session {
         }
     }
 
+    /// Take a JSON screenshot (with full cell data) of a specific region.
+    pub fn screenshot_region_json(
+        &self,
+        top: u16,
+        left: u16,
+        bottom: u16,
+        right: u16,
+    ) -> crate::Result<ScreenContent> {
+        let resp = self.inner.send_command(|reply| EngineCommand::Screenshot {
+            session: self.name.clone(),
+            format: ScreenFormat::Json,
+            region: Some((top, left, bottom, right)),
+            reply,
+        })?;
+        match response_to_result(resp)? {
+            Some(ResponseData::Screen(screen)) => Ok(screen),
+            _ => panic!("unexpected response from screenshot"),
+        }
+    }
+
     // ── Inspection ──────────────────────────────────────────
 
     /// Get cursor position and visibility.
