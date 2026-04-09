@@ -63,6 +63,8 @@ Same shape — point `command` at the absolute path to the `phantom-mcp` binary.
 
 ## Live viewing inside tmux
 
+![phantom-mcp live tmux viewer demo](docs/demo.gif)
+
 When the user is running their MCP client (e.g. Claude Code) **inside tmux**,
 phantom-mcp can open a live viewer pane right next to the chat — the user
 sees what the agent is doing in real time, no separate terminal required.
@@ -148,3 +150,18 @@ cargo test -p phantom-mcp --tests            # integration tests against bash
 
 The integration tests require `bash` on `PATH` and gracefully skip if it's
 absent.
+
+### Re-recording the demo GIF
+
+The demo GIF at the top of the live-viewing section is generated from a
+[vhs](https://github.com/charmbracelet/vhs) tape:
+
+```sh
+cargo build -p phantom-mcp -p phantom-cli      # both binaries must exist in target/debug
+vhs crates/phantom-mcp/docs/demo.tape           # writes crates/phantom-mcp/docs/demo.gif
+```
+
+The runner script (`docs/demo_runner.py`) drives phantom-mcp via raw
+JSON-RPC over stdio — no MCP client needed — and the tape spawns a fresh
+isolated tmux server inside vhs's headless terminal so the recording is
+deterministic.
