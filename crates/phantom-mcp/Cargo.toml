@@ -1,0 +1,35 @@
+[package]
+name = "phantom-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "MCP server exposing phantom for AI agents"
+keywords = ["tui", "terminal", "mcp", "agents", "automation"]
+categories = ["command-line-utilities", "development-tools::testing"]
+publish = false
+
+[[bin]]
+name = "phantom-mcp"
+path = "src/main.rs"
+
+[dependencies]
+phantom-core.workspace = true
+phantom-daemon = { path = "../phantom-daemon", version = "0.1.0" }
+phantom-test = { path = "../phantom-test", version = "0.1.0" }
+crossbeam-channel.workspace = true
+mio.workspace = true
+regex.workspace = true
+rmcp = { version = "1.3", features = ["server", "macros", "transport-io", "schemars"] }
+schemars = "1.0"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-std"] }
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+fontdue = "0.9"
+image = { version = "0.25", default-features = false, features = ["png"] }
+base64 = "0.22"
