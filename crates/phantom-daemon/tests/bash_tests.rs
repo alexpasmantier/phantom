@@ -274,7 +274,12 @@ fn test_cell_inspection() {
     assert_ok(&h.wait_for_stable("cell", 300, 5000));
 
     h.send_type("cell", "echo ABCDEF\n");
+    // wait_for_text matches as soon as the typed command is echoed back, which
+    // can fire before bash has actually executed `echo` and printed the result
+    // line. Wait for the screen to settle so we know both the typed command
+    // and the output line are present before screenshotting.
     assert_ok(&h.wait_for_text("cell", "ABCDEF", 5000));
+    assert_ok(&h.wait_for_stable("cell", 300, 5000));
 
     // Find the row with ABCDEF in the screenshot to know the y coordinate
     let text = h.screenshot_text("cell");
