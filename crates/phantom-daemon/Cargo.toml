@@ -16,7 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 phantom-core.workspace = true
-libghostty-vt = "0.1"
+libghostty-vt = "0.2"
 clap.workspace = true
 nix.workspace = true
 mio.workspace = true

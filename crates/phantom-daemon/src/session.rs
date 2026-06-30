@@ -201,7 +201,7 @@ impl Session {
         for row_idx in start_row..end_row {
             let mut line = String::new();
             for col_idx in 0..cols {
-                let coord: PointCoordinate = ffi::GhosttyPointCoordinate {
+                let coord: PointCoordinate = ffi::PointCoordinate {
                     x: col_idx,
                     y: row_idx as u32,
                 }
@@ -247,7 +247,7 @@ impl Session {
 
     /// Get a single cell's data at (x, y) on the active screen.
     pub fn get_cell(&self, x: u16, y: u16) -> Result<phantom_core::types::CellData> {
-        let coord: PointCoordinate = ffi::GhosttyPointCoordinate { x, y: y as u32 }.into();
+        let coord: PointCoordinate = ffi::PointCoordinate { x, y: y as u32 }.into();
         let grid_ref = self.terminal.grid_ref(Point::Active(coord))?;
         let style = grid_ref.style()?;
         let mut buf = ['\0'; 8];
