@@ -105,8 +105,12 @@ impl Pty {
     }
 
     pub fn kill_child(&self, signal: Signal) -> Result<()> {
-        kill(self.child_pid, signal)?;
-        Ok(())
+        match kill(self.child_pid, signal) {
+            // ESRCH means the process is already gone; a kill that finds nothing
+            // to kill has still achieved what the caller wanted.
+            Ok(()) | Err(nix::errno::Errno::ESRCH) => Ok(()),
+            Err(e) => Err(e).context("kill failed"),
+        }
     }
 }
 
