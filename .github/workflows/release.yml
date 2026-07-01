@@ -20,11 +20,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Pinned to macos-14: newer macos images fail to link zig 0.15.2's
+          # compiler_rt (undefined symbol __availability_version_check).
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-14
             zig-arch: aarch64-macos
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-14
             zig-arch: aarch64-macos
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
