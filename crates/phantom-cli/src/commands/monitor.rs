@@ -2,7 +2,7 @@ use std::io::{Write, stdout};
 
 use anyhow::Result;
 use phantom_core::protocol::{Request, Response, ResponseData};
-use phantom_core::types::ScreenFormat;
+use phantom_core::types::{RowContent, ScreenFormat};
 
 use crate::daemon_ctl;
 
@@ -53,7 +53,7 @@ async fn run_loop(
         let resp = match conn
             .send(&Request::Screenshot {
                 session: session.to_string(),
-                format: ScreenFormat::Text,
+                format: ScreenFormat::Json,
                 region: None,
             })
             .await
@@ -75,8 +75,10 @@ async fn run_loop(
                     if i > 0 {
                         buf.push_str("\r\n");
                     }
-                    buf.push_str(&row.text);
-                    buf.push_str("\x1b[K");
+                    render_row(&mut buf, row);
+                    // Reset before clearing to EOL so any cell background color
+                    // doesn't bleed across the cleared region.
+                    buf.push_str("\x1b[0m\x1b[K");
                 }
                 buf.push_str("\x1b[J");
                 print!("{buf}");
@@ -96,4 +98,93 @@ async fn run_loop(
     }
 
     Ok(None)
+}
+
+/// Style state emitted as an SGR sequence. Cells are compared against the
+/// previously emitted style so we only write escapes when something changes,
+/// keeping runs of same-styled cells cheap.
+#[derive(Default, PartialEq)]
+struct Style {
+    fg: Option<(u8, u8, u8)>,
+    bg: Option<(u8, u8, u8)>,
+    bold: bool,
+    italic: bool,
+    underline: bool,
+    strikethrough: bool,
+    inverse: bool,
+    faint: bool,
+}
+
+/// Render a single row's cells into `buf` as text plus truecolor SGR escapes.
+/// Falls back to the plain `row.text` if per-cell data isn't present.
+fn render_row(buf: &mut String, row: &RowContent) {
+    if row.cells.is_empty() {
+        buf.push_str(&row.text);
+        return;
+    }
+
+    let mut cur = Style::default();
+    for cell in &row.cells {
+        let next = Style {
+            fg: cell.fg.as_deref().and_then(parse_hex),
+            bg: cell.bg.as_deref().and_then(parse_hex),
+            bold: cell.bold,
+            italic: cell.italic,
+            underline: cell.underline,
+            strikethrough: cell.strikethrough,
+            inverse: cell.inverse,
+            faint: cell.faint,
+        };
+
+        if next != cur {
+            // Reset then re-emit the full style; simpler than tracking which
+            // individual attributes were turned on or off.
+            buf.push_str("\x1b[0m");
+            if let Some((r, g, b)) = next.fg {
+                buf.push_str(&format!("\x1b[38;2;{r};{g};{b}m"));
+            }
+            if let Some((r, g, b)) = next.bg {
+                buf.push_str(&format!("\x1b[48;2;{r};{g};{b}m"));
+            }
+            if next.bold {
+                buf.push_str("\x1b[1m");
+            }
+            if next.faint {
+                buf.push_str("\x1b[2m");
+            }
+            if next.italic {
+                buf.push_str("\x1b[3m");
+            }
+            if next.underline {
+                buf.push_str("\x1b[4m");
+            }
+            if next.inverse {
+                buf.push_str("\x1b[7m");
+            }
+            if next.strikethrough {
+                buf.push_str("\x1b[9m");
+            }
+            cur = next;
+        }
+
+        // A cell with no grapheme (e.g. the trailing half of a wide char, or a
+        // blank cell) still occupies a column.
+        if cell.grapheme.is_empty() {
+            buf.push(' ');
+        } else {
+            buf.push_str(&cell.grapheme);
+        }
+    }
+}
+
+/// Parse a "#rrggbb" hex color into an (r, g, b) triple.
+fn parse_hex(s: &str) -> Option<(u8, u8, u8)> {
+    let h = s.strip_prefix('#')?;
+    if h.len() != 6 {
+        return None;
+    }
+    let r = u8::from_str_radix(&h[0..2], 16).ok()?;
+    let g = u8::from_str_radix(&h[2..4], 16).ok()?;
+    let b = u8::from_str_radix(&h[4..6], 16).ok()?;
+    Some((r, g, b))
 }
