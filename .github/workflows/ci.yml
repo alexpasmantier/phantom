@@ -21,7 +21,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          # Pinned to macos-14: the macos-latest image (Xcode 17+ SDK) fails to
+          # link zig 0.15.2's compiler_rt (undefined symbol
+          # __availability_version_check). macos-14 keeps a compatible SDK, and
+          # ghostty pins minimum_zig_version = 0.15.2 so we can't just bump zig.
+          - os: macos-14
             zig-arch: aarch64-macos
           - os: ubuntu-latest
             zig-arch: x86_64-linux
