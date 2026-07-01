@@ -277,11 +277,19 @@ impl Engine {
         rows: u16,
         scrollback: u32,
     ) -> Response {
-        if self.sessions.contains_key(&name) {
-            return Response::error(
-                exit_codes::SESSION_COLLISION,
-                format!("Session '{name}' already exists"),
-            );
+        // A name collides only with a *running* session. If the existing
+        // session under this name has already exited, reclaim the name by
+        // dropping the stale entry — otherwise an exited session would block
+        // its own name forever.
+        if let Some(existing) = self.sessions.get_mut(&name) {
+            if existing.check_exit().is_some() {
+                self.sessions.remove(&name);
+            } else {
+                return Response::error(
+                    exit_codes::SESSION_COLLISION,
+                    format!("Session '{name}' already exists"),
+                );
+            }
         }
 
         match Session::new(
@@ -503,7 +511,18 @@ impl Engine {
         let sig = signal
             .and_then(|s| Signal::try_from(s).ok())
             .unwrap_or(Signal::SIGTERM);
-        match session.pty.kill_child(sig) {
+
+        // If the child already exited, check_exit() has reaped it and its PID may
+        // now be recycled, so don't signal it — killing an already-dead session
+        // is a no-op success. Otherwise send the signal; kill_child treats an
+        // already-dead process as success too (ESRCH). The entry is kept so it
+        // stays queryable as exited; the name is reclaimed lazily by `run`.
+        let result = if session.check_exit().is_some() {
+            Ok(())
+        } else {
+            session.pty.kill_child(sig)
+        };
+        match result {
             Ok(()) => Response::ok(),
             Err(e) => Response::error(exit_codes::ERROR, format!("Kill error: {e}")),
         }

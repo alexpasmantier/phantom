@@ -160,6 +160,31 @@ fn test_kill_session() {
 }
 
 #[test]
+fn test_kill_exited_session_is_ok() {
+    // Killing an already-exited session used to bubble up ESRCH ("No such
+    // process") from the underlying kill(2); it should be a no-op success.
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("killtwice", "sleep", &["999"], 80, 24));
+    assert_ok(&h.kill_session("killtwice"));
+    assert_ok(&h.wait_for_exit("killtwice", 5000));
+    // Second kill targets the now-exited session.
+    assert_ok(&h.kill_session("killtwice"));
+}
+
+#[test]
+fn test_run_reclaims_exited_session_name() {
+    // An exited session must not block reuse of its name; `run` should replace
+    // the stale entry instead of returning "already exists".
+    let h = TestHarness::new();
+    assert_ok(&h.create_session("recycle", "sleep", &["999"], 80, 24));
+    assert_ok(&h.kill_session("recycle"));
+    assert_ok(&h.wait_for_exit("recycle", 5000));
+    // Same name again — should succeed now that the old one exited.
+    assert_ok(&h.create_session("recycle", "sleep", &["999"], 80, 24));
+    assert_ok(&h.kill_session("recycle"));
+}
+
+#[test]
 fn test_screen_stable_condition() {
     let h = TestHarness::new();
     assert_ok(&h.create_session("stable", "bash", &["--norc", "--noprofile"], 80, 24));
