@@ -392,9 +392,11 @@ impl PhantomMcpServer {
     }
 
     #[tool(description = "Capture the current screen of a session. \
-                       `format=text` returns plain text rows joined by newlines. \
-                       `format=image` returns a PNG rendering of the terminal — preferred \
-                       when you need to visually understand layout, colors, or cursor placement. \
+                       `format=text` returns plain text rows joined by newlines — it strips all \
+                       color and styling, so use `format=image` whenever color carries meaning: \
+                       colored status/error indicators, syntax highlighting, diffs (red/green), \
+                       or anything else you need to visually understand (layout, cursor placement). \
+                       `format=image` returns a PNG rendering of the terminal. \
                        `region` (top/left/bottom/right, 0-indexed inclusive) restricts the capture \
                        to a sub-rectangle of the screen.")]
     pub async fn phantom_screenshot(
@@ -611,7 +613,8 @@ impl ServerHandler for PhantomMcpServer {
                  \n  2. phantom_show right after phantom_run, so tmux users get a live viewer \
                  \n     pane; this is a no-op for non-tmux users so always call it \
                  \n  3. phantom_wait (stable_ms or text) until the UI is ready \
-                 \n  4. phantom_screenshot (use format='image' for visual grounding) \
+                 \n  4. phantom_screenshot (use format='image' for visual grounding or \
+                 \n     whenever color carries meaning — status indicators, syntax highlighting, diffs) \
                  \n  5. phantom_send to type text or press keys \
                  \n  6. repeat 3–5 \
                  \n  7. phantom_kill when done \

@@ -133,19 +133,22 @@ initialize, so well-behaved clients will follow it without prompting.
 
 ## Image rendering
 
-Screenshots requested with `format: "image"` are rendered to PNG using
+Screenshots requested with `format: "image"` are rendered to PNG by
+`phantom-core`'s `render` module (feature-gated), using
 [fontdue](https://github.com/mooman219/fontdue) over a vendored copy of
 **JetBrains Mono Regular** (SIL OFL 1.1; license at
-`assets/JetBrainsMono-OFL.txt`). The renderer honors per-cell foreground,
-background, bold, faint, italic, inverse, underline, and strikethrough.
-Color formats supported: `#rrggbb` and `palette:N` (xterm 256-color).
+`../phantom-core/assets/JetBrainsMono-OFL.txt`). The renderer honors
+per-cell foreground, background, bold, faint, italic, inverse, underline,
+and strikethrough. Color formats supported: `#rrggbb` and `palette:N`
+(xterm 256-color). The same renderer backs `phantom screenshot --format image`
+in the CLI.
 
 ## Development
 
 ```sh
-cargo test -p phantom-mcp                    # unit + integration tests (--test-threads=1 not required)
-cargo test -p phantom-mcp --lib              # renderer unit tests only
-cargo test -p phantom-mcp --tests            # integration tests against bash
+cargo test -p phantom-mcp                              # unit + integration tests (--test-threads=1 not required)
+cargo test -p phantom-mcp --tests                      # integration tests against bash
+cargo test -p phantom-core --features render --lib     # renderer unit tests
 ```
 
 The integration tests require `bash` on `PATH` and gracefully skip if it's
