@@ -10,7 +10,8 @@ use std::sync::OnceLock;
 use anyhow::Result;
 use fontdue::{Font, FontSettings};
 use image::{ImageBuffer, ImageFormat, Rgba, RgbaImage};
-use phantom_core::types::{CellData, ScreenContent};
+
+use crate::types::{CellData, ScreenContent};
 
 const FONT_BYTES: &[u8] = include_bytes!("../assets/JetBrainsMono-Regular.ttf");
 const FONT_SIZE: f32 = 16.0;
@@ -270,7 +271,7 @@ fn palette_to_rgb(idx: u8) -> Rgba<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phantom_core::types::{CursorInfo, CursorStyle, RowContent};
+    use crate::types::{CursorInfo, CursorStyle, RowContent};
 
     fn make_screen(cols: u16, rows: u16, lines: &[&str]) -> ScreenContent {
         ScreenContent {

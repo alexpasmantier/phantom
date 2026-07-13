@@ -1,3 +1,5 @@
+use std::io::{IsTerminal, Write};
+
 use anyhow::Result;
 use phantom_core::protocol::{Request, Response, ResponseData};
 use phantom_core::types::{ScreenContent, ScreenFormat};
@@ -9,13 +11,17 @@ pub async fn execute(
     session: String,
     format: String,
     region: Option<String>,
-    output: OutputMode,
+    output_path: Option<String>,
+    output_mode: OutputMode,
 ) -> Result<()> {
+    let is_image = format == "image";
     let fmt = match format.as_str() {
         "text" => ScreenFormat::Text,
         "json" => ScreenFormat::Json,
         "html" => ScreenFormat::Html,
-        _ => anyhow::bail!("Invalid format: {format}. Use text, json, or html"),
+        // Image rendering needs per-cell color/style data, same as JSON.
+        "image" => ScreenFormat::Json,
+        _ => anyhow::bail!("Invalid format: {format}. Use text, json, html, or image"),
     };
 
     let region = match region {
@@ -43,13 +49,39 @@ pub async fn execute(
 
     match resp {
         Response::Ok { data } => match data {
-            Some(ResponseData::Screen(screen)) => print_screen(&screen, &fmt, output),
+            Some(ResponseData::Screen(screen)) if is_image => {
+                write_image(&screen, region, output_path)?
+            }
+            Some(ResponseData::Screen(screen)) => print_screen(&screen, &fmt, output_mode),
             Some(ResponseData::Text(text)) => println!("{text}"),
             _ => {}
         },
         Response::Error { code, message } => {
             eprintln!("Error: {message}");
             std::process::exit(code);
+        }
+    }
+    Ok(())
+}
+
+fn write_image(
+    screen: &ScreenContent,
+    region: Option<(u16, u16, u16, u16)>,
+    output_path: Option<String>,
+) -> Result<()> {
+    let png = phantom_core::render::render_png(screen, region)?;
+    match output_path {
+        Some(path) => {
+            std::fs::write(&path, png)?;
+            eprintln!("Wrote {path}");
+        }
+        None => {
+            if std::io::stdout().is_terminal() {
+                anyhow::bail!(
+                    "refusing to write PNG bytes to a terminal; pass --output <file> or redirect stdout"
+                );
+            }
+            std::io::stdout().write_all(&png)?;
         }
     }
     Ok(())

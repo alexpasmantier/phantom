@@ -18,7 +18,7 @@ name = "pt"
 path = "src/pt.rs"
 
 [dependencies]
-phantom-core.workspace = true
+phantom-core = { workspace = true, features = ["render"] }
 clap = { workspace = true, features = ["string"] }
 clap_complete = "4"
 tokio = { workspace = true, features = ["process"] }

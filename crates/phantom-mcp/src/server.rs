@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use phantom_core::render;
 use phantom_test::{Phantom, PhantomError, Session};
 use rmcp::{
     ErrorData as McpError, ServerHandler,
@@ -15,7 +16,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::Mutex;
 
-use crate::{render, tmux};
+use crate::tmux;
 
 // ── Parameter structs ────────────────────────────────────────
 

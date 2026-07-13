@@ -81,12 +81,15 @@ enum Commands {
         /// Session name
         #[arg(short, long, required = true)]
         session: String,
-        /// Output format
+        /// Output format: text, json, html, or image (PNG)
         #[arg(long, default_value = "text")]
         format: String,
         /// Region to capture: top,left,bottom,right (0-indexed)
         #[arg(long)]
         region: Option<String>,
+        /// File to write the image to (format=image only; defaults to stdout)
+        #[arg(short, long)]
+        output: Option<String>,
     },
     /// Wait for a condition
     Wait {
@@ -312,7 +315,8 @@ async fn main() -> anyhow::Result<()> {
             session,
             format,
             region,
-        } => commands::screenshot::execute(session, format, region, output_mode).await,
+            output,
+        } => commands::screenshot::execute(session, format, region, output, output_mode).await,
         Commands::Wait {
             session,
             text,

@@ -5,7 +5,11 @@
 //! - [`protocol`] — JSON request/response enums for daemon communication
 //! - [`types`] — Session, cursor, screen, and input data structures
 //! - [`exit_codes`] — Standardized process exit codes
+//! - [`render`] — rasterize a screen capture to PNG (behind the `render` feature)
 
 pub mod exit_codes;
 pub mod protocol;
 pub mod types;
+
+#[cfg(feature = "render")]
+pub mod render;

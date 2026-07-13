@@ -959,6 +959,9 @@ dependencies = [
 name = "phantom-core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "fontdue",
+ "image",
  "regex",
  "serde",
  "serde_json",
@@ -991,8 +994,6 @@ dependencies = [
  "anyhow",
  "base64",
  "crossbeam-channel",
- "fontdue",
- "image",
  "mio",
  "phantom-core",
  "phantom-daemon",

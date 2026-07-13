@@ -6,6 +6,5 @@
 //! the wire protocol.
 
 pub mod observer;
-pub mod render;
 pub mod server;
 pub mod tmux;

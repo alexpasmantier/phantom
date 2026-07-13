@@ -16,7 +16,7 @@ name = "phantom-mcp"
 path = "src/main.rs"
 
 [dependencies]
-phantom-core.workspace = true
+phantom-core = { workspace = true, features = ["render"] }
 phantom-daemon = { path = "../phantom-daemon", version = "0.1.0" }
 phantom-test = { path = "../phantom-test", version = "0.1.0" }
 crossbeam-channel.workspace = true
@@ -30,6 +30,4 @@ serde_json.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-fontdue = "0.9"
-image = { version = "0.25", default-features = false, features = ["png"] }
 base64 = "0.22"
