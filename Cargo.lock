@@ -942,7 +942,7 @@ checksum = "b867cad97c0791bbd3aaa6472142568c6c9e8f71937e98379f584cfb0cf35bec"
 
 [[package]]
 name = "phantom-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -957,7 +957,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "fontdue",
@@ -969,7 +969,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-daemon"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -989,7 +989,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-mcp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -1010,7 +1010,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-test"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
