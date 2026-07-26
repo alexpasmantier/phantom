@@ -10,7 +10,6 @@ use phantom_core::exit_codes;
 use phantom_core::protocol::{Response, ResponseData};
 use phantom_core::types::{InputAction, ScreenFormat, WaitCondition};
 
-use crate::capture;
 use crate::input;
 use crate::session::Session;
 use crate::wait::{PendingWait, evaluate_conditions};
@@ -369,7 +368,7 @@ impl Engine {
             return Response::session_not_found(session_name);
         };
 
-        match capture::capture_screen(session, format, region) {
+        match session.capture(format, region) {
             Ok(screen) => Response::ok_with(ResponseData::Screen(screen)),
             Err(e) => Response::error(exit_codes::ERROR, format!("Capture error: {e}")),
         }
