@@ -7,7 +7,13 @@ Thanks for your interest in contributing to Phantom! This guide will help you ge
 ### Prerequisites
 
 - **Rust nightly** -- pinned in `rust-toolchain.toml`, so `rustup` will pick it up automatically.
-- **Zig 0.15.x** -- required for the vendored libghostty-vt build. Install via your package manager or from [ziglang.org](https://ziglang.org/download/).
+- **Zig 0.15.x** -- required by the default `ghostty` backend, which builds vendored libghostty-vt. Install via your package manager or from [ziglang.org](https://ziglang.org/download/). Note that 0.16 does *not* work: ghostty pins `minimum_zig_version = 0.15.2`.
+
+No Zig on hand? Build against the pure-Rust backend instead:
+
+```bash
+cargo build -p phantom-daemon --no-default-features --features alacritty
+```
 
 ### Getting Started
 
@@ -56,20 +62,35 @@ phantom CLI  --[unix socket]-->  phantom-daemon  --[PTY]-->  child process
 | Crate | Path | Purpose |
 |-------|------|---------|
 | **phantom-core** | `crates/phantom-core/` | Shared types, JSON protocol, exit codes. No libghostty dependency. |
-| **phantom-daemon** | `crates/phantom-daemon/` | Daemon binary and library. Owns all libghostty-vt terminal state. |
+| **phantom-daemon** | `crates/phantom-daemon/` | Daemon binary and library. Owns all terminal state. |
 | **phantom-cli** | `crates/phantom-cli/` | Stateless CLI binary (`phantom` / `pt`). Connects to the daemon over a Unix socket. |
 | **phantom-test** | `crates/phantom-test/` | In-process testing library with an ergonomic builder API. |
 
+### Terminal Backends
+
+Terminal emulation sits behind the `TerminalBackend` trait, picked at compile time by cargo feature:
+
+| Feature | Backend | Notes |
+|---------|---------|-------|
+| `ghostty` (default) | libghostty-vt | Highest fidelity. Needs Zig 0.15.x. |
+| `alacritty` | `alacritty_terminal` + `termwiz` | Pure Rust, no Zig. `termwiz` supplies key encoding, which `alacritty_terminal` does not have. |
+
+Features are additive, so if both are enabled `ghostty` wins. Enabling neither is a compile error.
+
+The trait deals only in `phantom_core::types`, so the engine, protocol and CLI never see the emulator. When adding a backend, implement it in `src/backend/<name>.rs` and run the existing suites against it -- they are backend-agnostic and act as the conformance tests.
+
+Known differences: the alacritty backend does not track OSC 7, so `pwd` is always `None` there.
+
 ### Threading Model
 
-All libghostty-vt types are `!Send + !Sync`. The daemon runs a dedicated **engine thread** (`std::thread`) that owns all terminal state. The Tokio async runtime handles socket I/O and communicates with the engine thread via crossbeam channels and an mio `Waker`.
+libghostty-vt types are `!Send + !Sync`. The daemon runs a dedicated **engine thread** (`std::thread`) that owns all terminal state. The Tokio async runtime handles socket I/O and communicates with the engine thread via crossbeam channels and an mio `Waker`.
 
 Key files to read first:
 
 - `crates/phantom-daemon/src/engine.rs` -- core event loop and command dispatch
-- `crates/phantom-daemon/src/session.rs` -- session wrapper around Terminal + PTY
-- `crates/phantom-daemon/src/capture.rs` -- screen capture via RenderState iteration
-- `crates/phantom-daemon/src/input.rs` -- key spec parsing and encoding
+- `crates/phantom-daemon/src/backend/mod.rs` -- the `TerminalBackend` trait and neutral key/mouse types
+- `crates/phantom-daemon/src/session.rs` -- session wrapper around a backend + PTY
+- `crates/phantom-daemon/src/input.rs` -- key spec parsing, then encoding via the backend
 - `crates/phantom-daemon/src/wait.rs` -- wait condition evaluation
 
 ## Code Style and Conventions

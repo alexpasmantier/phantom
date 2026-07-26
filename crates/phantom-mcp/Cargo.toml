@@ -18,6 +18,7 @@ path = "src/main.rs"
 [features]
 default = ["ghostty"]
 ghostty = ["phantom-daemon/ghostty", "phantom-test/ghostty"]
+alacritty = ["phantom-daemon/alacritty", "phantom-test/alacritty"]
 
 [dependencies]
 phantom-core = { workspace = true, features = ["render"] }

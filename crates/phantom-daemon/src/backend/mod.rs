@@ -11,14 +11,23 @@
 use anyhow::Result;
 use phantom_core::types::{CellData, CursorInfo, ScreenContent, ScreenFormat};
 
+#[cfg(feature = "alacritty")]
+pub mod alacritty;
 #[cfg(feature = "ghostty")]
 pub mod ghostty;
 
+// Cargo features are additive, so both backends can end up enabled at once.
+// ghostty wins in that case — it's the higher-fidelity one.
 #[cfg(feature = "ghostty")]
 pub type DefaultBackend = ghostty::GhosttyBackend;
 
-#[cfg(not(feature = "ghostty"))]
-compile_error!("phantom-daemon needs a terminal backend — enable the `ghostty` feature");
+#[cfg(all(feature = "alacritty", not(feature = "ghostty")))]
+pub type DefaultBackend = alacritty::AlacrittyBackend;
+
+#[cfg(not(any(feature = "ghostty", feature = "alacritty")))]
+compile_error!(
+    "phantom-daemon needs a terminal backend — enable `ghostty` (needs Zig) or `alacritty` (pure Rust)"
+);
 
 /// Screen region as `(top, left, bottom, right)`, 0-indexed and inclusive.
 /// Same convention as `phantom_core::protocol::Request::Screenshot::region`.

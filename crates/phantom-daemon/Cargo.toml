@@ -18,6 +18,11 @@ path = "src/main.rs"
 default = ["ghostty"]
 # Terminal emulation via libghostty-vt. Requires Zig 0.15.x to build.
 ghostty = ["dep:libghostty-vt"]
+# Pure-Rust terminal emulation, no Zig toolchain needed. alacritty_terminal
+# has no key encoder, so termwiz supplies one.
+alacritty = ["dep:alacritty_terminal", "dep:termwiz"]
+alacritty_terminal = ["dep:alacritty_terminal"]
+termwiz = ["dep:termwiz"]
 
 [dependencies]
 phantom-core.workspace = true
@@ -33,6 +38,8 @@ regex.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+alacritty_terminal = { version = "0.26.0", optional = true }
+termwiz = { version = "0.23.3", default-features = false, optional = true }
 
 [dev-dependencies]
 tempfile = "3"

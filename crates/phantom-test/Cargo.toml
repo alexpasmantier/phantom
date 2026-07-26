@@ -13,6 +13,7 @@ categories = ["development-tools::testing"]
 [features]
 default = ["ghostty"]
 ghostty = ["phantom-daemon/ghostty"]
+alacritty = ["phantom-daemon/alacritty"]
 monitor = ["ratatui", "crossterm", "throbber-widgets-tui"]
 
 [dependencies]
