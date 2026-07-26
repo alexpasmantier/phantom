@@ -21,8 +21,6 @@ ghostty = ["dep:libghostty-vt"]
 # Pure-Rust terminal emulation, no Zig toolchain needed. alacritty_terminal
 # has no key encoder, so termwiz supplies one.
 alacritty = ["dep:alacritty_terminal", "dep:termwiz"]
-alacritty_terminal = ["dep:alacritty_terminal"]
-termwiz = ["dep:termwiz"]
 
 [dependencies]
 phantom-core.workspace = true
@@ -38,7 +36,8 @@ regex.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-alacritty_terminal = { version = "0.26.0", optional = true }
+# default-features = false drops serde; we never serialize its types.
+alacritty_terminal = { version = "0.26.0", default-features = false, optional = true }
 termwiz = { version = "0.23.3", default-features = false, optional = true }
 
 [dev-dependencies]
