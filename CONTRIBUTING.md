@@ -81,6 +81,8 @@ The trait deals only in `phantom_core::types`, so the engine, protocol and CLI n
 
 Known differences: the alacritty backend does not track OSC 7, so `pwd` is always `None` there.
 
+The alacritty backend also pulls `signal-hook >= 0.4.3` (and `polling`, `rustix-openpty`) transitively, because `alacritty_terminal` ships its own PTY and event loop that we do not use but cannot feature-gate away. A downstream project whose lockfile pins an older `signal-hook` will need a `cargo update` before it can enable this backend.
+
 ### Threading Model
 
 libghostty-vt types are `!Send + !Sync`. The daemon runs a dedicated **engine thread** (`std::thread`) that owns all terminal state. The Tokio async runtime handles socket I/O and communicates with the engine thread via crossbeam channels and an mio `Waker`.

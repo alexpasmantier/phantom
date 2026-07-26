@@ -35,7 +35,6 @@ dependencies = [
  "regex-automata",
  "rustix 1.1.4",
  "rustix-openpty",
- "serde",
  "signal-hook 0.4.4",
  "unicode-width 0.2.0",
  "vte",
@@ -183,9 +182,6 @@ name = "bitflags"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af"
-dependencies = [
- "serde_core",
-]
 
 [[package]]
 name = "block-buffer"
@@ -2330,7 +2326,6 @@ dependencies = [
  "cursor-icon",
  "log",
  "memchr",
- "serde",
 ]
 
 [[package]]
