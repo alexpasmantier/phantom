@@ -60,3 +60,33 @@ jobs:
 
       - name: Run tests
         run: cargo test -p phantom-daemon -- --test-threads=1
+
+      # Features are additive, so both backends can be on at once. ghostty is
+      # supposed to win; this checks that the selection still compiles and
+      # still picks ghostty.
+      - name: Check both backends enabled
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo test -p phantom-daemon --features alacritty --lib
+
+  alacritty:
+    name: Check (pure-Rust backend)
+    runs-on: ubuntu-latest
+    # Deliberately no Zig install: the point of this backend is that it builds
+    # without one, and a missing toolchain here is what proves it.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+
+      - name: Cache cargo registry & build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Clippy
+        run: cargo clippy -p phantom-daemon --no-default-features --features alacritty --all-targets -- -D warnings
+
+      - name: Run tests
+        run: cargo test -p phantom-daemon --no-default-features --features alacritty -- --test-threads=1
