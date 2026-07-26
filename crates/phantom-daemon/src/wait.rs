@@ -48,12 +48,10 @@ fn evaluate_one(session: &mut Session, condition: &WaitCondition) -> bool {
             }
         }
         WaitCondition::CursorAt { x, y } => {
-            session.terminal.cursor_x().ok() == Some(*x)
-                && session.terminal.cursor_y().ok() == Some(*y)
+            let cursor = session.cursor_info();
+            cursor.x == *x && cursor.y == *y
         }
-        WaitCondition::CursorVisible(visible) => {
-            session.terminal.is_cursor_visible().ok() == Some(*visible)
-        }
+        WaitCondition::CursorVisible(visible) => session.cursor_info().visible == *visible,
         WaitCondition::ProcessExited { exit_code } => match session.check_exit() {
             Some(actual) => match exit_code {
                 Some(expected) => actual == *expected,

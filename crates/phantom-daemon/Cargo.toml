@@ -14,9 +14,14 @@ categories = ["development-tools::testing"]
 name = "phantom-daemon"
 path = "src/main.rs"
 
+[features]
+default = ["ghostty"]
+# Terminal emulation via libghostty-vt. Requires Zig 0.15.x to build.
+ghostty = ["dep:libghostty-vt"]
+
 [dependencies]
 phantom-core.workspace = true
-libghostty-vt = "0.2"
+libghostty-vt = { version = "0.2", optional = true }
 clap.workspace = true
 nix.workspace = true
 mio.workspace = true

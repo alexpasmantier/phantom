@@ -5,6 +5,13 @@
 use std::path::Path;
 
 fn main() {
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_GHOSTTY");
+
+    // Nothing to link against unless the ghostty backend is in the build.
+    if std::env::var_os("CARGO_FEATURE_GHOSTTY").is_none() {
+        return;
+    }
+
     let out_dir = std::env::var("OUT_DIR").unwrap();
     let out_path = Path::new(&out_dir);
 

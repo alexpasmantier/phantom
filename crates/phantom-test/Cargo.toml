@@ -11,12 +11,13 @@ keywords = ["tui", "terminal", "testing", "automation"]
 categories = ["development-tools::testing"]
 
 [features]
-default = []
+default = ["ghostty"]
+ghostty = ["phantom-daemon/ghostty"]
 monitor = ["ratatui", "crossterm", "throbber-widgets-tui"]
 
 [dependencies]
 phantom-core.workspace = true
-phantom-daemon = { path = "../phantom-daemon", version = "0.2.0" }
+phantom-daemon = { path = "../phantom-daemon", version = "0.2.0", default-features = false }
 crossbeam-channel.workspace = true
 mio.workspace = true
 regex.workspace = true
