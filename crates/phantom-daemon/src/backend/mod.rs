@@ -149,3 +149,25 @@ pub trait TerminalBackend {
 
     fn bracketed_paste_enabled(&self) -> bool;
 }
+
+#[cfg(test)]
+mod tests {
+    /// Cargo features are additive, so a dependency enabling `alacritty` must
+    /// not silently downgrade a build that wanted `ghostty`.
+    #[test]
+    #[cfg(all(feature = "ghostty", feature = "alacritty"))]
+    fn ghostty_wins_when_both_features_are_enabled() {
+        let selected = std::any::type_name::<super::DefaultBackend>();
+        assert!(selected.contains("Ghostty"), "selected backend: {selected}");
+    }
+
+    #[test]
+    #[cfg(all(feature = "alacritty", not(feature = "ghostty")))]
+    fn alacritty_is_used_when_it_is_the_only_backend() {
+        let selected = std::any::type_name::<super::DefaultBackend>();
+        assert!(
+            selected.contains("Alacritty"),
+            "selected backend: {selected}"
+        );
+    }
+}
