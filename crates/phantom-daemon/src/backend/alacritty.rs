@@ -10,7 +10,7 @@ use std::rc::Rc;
 use alacritty_terminal::event::{Event, EventListener, WindowSize};
 use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::index::{Column, Line};
-use alacritty_terminal::term::cell::Flags;
+use alacritty_terminal::term::cell::{Cell, Flags};
 use alacritty_terminal::term::{Config, Term, TermMode};
 use alacritty_terminal::vte::ansi::{Color as AnsiColor, NamedColor, Processor, Rgb};
 use anyhow::{Result, bail};
@@ -91,9 +91,8 @@ pub struct AlacrittyBackend {
 }
 
 impl AlacrittyBackend {
-    /// Text of one grid line, `None` for lines outside the grid.
-    /// Wide-character spacers are skipped so the text keeps the same display
-    /// width as the grid row.
+    /// Text of one grid line. Wide-character spacers are skipped so the text
+    /// keeps the same display width as the grid row.
     fn line_text(&self, line: Line) -> String {
         let grid = self.term.grid();
         let mut text = String::with_capacity(self.cols as usize);
@@ -102,7 +101,7 @@ impl AlacrittyBackend {
             if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
                 continue;
             }
-            text.push(cell.c);
+            push_grapheme(&mut text, cell);
         }
         text
     }
@@ -181,10 +180,10 @@ impl TerminalBackend for AlacrittyBackend {
                 if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
                     continue;
                 }
-                text.push(cell.c);
+                push_grapheme(&mut text, cell);
 
                 if want_cells {
-                    cells.push(cell_data(cell.c, cell.fg, cell.bg, cell.flags));
+                    cells.push(cell_data(cell));
                 }
             }
 
@@ -224,7 +223,7 @@ impl TerminalBackend for AlacrittyBackend {
             );
         }
         let cell = &self.term.grid()[Line(y as i32)][Column(x as usize)];
-        Ok(cell_data(cell.c, cell.fg, cell.bg, cell.flags))
+        Ok(cell_data(cell))
     }
 
     fn scrollback(&self, max_lines: Option<u32>) -> Result<Vec<String>> {
@@ -359,11 +358,23 @@ impl TerminalBackend for AlacrittyBackend {
     }
 }
 
-fn cell_data(c: char, fg: AnsiColor, bg: AnsiColor, flags: Flags) -> CellData {
+/// Append the cell's grapheme: its base character plus any combining marks,
+/// variation selectors or joiners alacritty stacked on it.
+fn push_grapheme(text: &mut String, cell: &Cell) {
+    text.push(cell.c);
+    if let Some(zerowidth) = cell.zerowidth() {
+        text.extend(zerowidth);
+    }
+}
+
+fn cell_data(cell: &Cell) -> CellData {
+    let mut grapheme = String::new();
+    push_grapheme(&mut grapheme, cell);
+    let flags = cell.flags;
     CellData {
-        grapheme: c.to_string(),
-        fg: color_to_string(fg),
-        bg: color_to_string(bg),
+        grapheme,
+        fg: color_to_string(cell.fg),
+        bg: color_to_string(cell.bg),
         bold: flags.contains(Flags::BOLD),
         italic: flags.contains(Flags::ITALIC),
         underline: flags.intersects(Flags::ALL_UNDERLINES),
@@ -507,6 +518,15 @@ mod tests {
             x,
             y,
         }
+    }
+
+    #[test]
+    fn combining_characters_stay_attached_to_their_cell() {
+        // Decomposed "é" plus a heart with an emoji variation selector.
+        let mut term = backend("e\u{301} \u{2764}\u{fe0f}");
+        assert!(term.screen_text().starts_with("e\u{301} \u{2764}\u{fe0f} "));
+        assert_eq!(term.cell(0, 0).unwrap().grapheme, "e\u{301}");
+        assert_eq!(term.cell(2, 0).unwrap().grapheme, "\u{2764}\u{fe0f}");
     }
 
     #[test]
