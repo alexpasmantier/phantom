@@ -49,7 +49,7 @@ Zig is only needed by the default `ghostty` backend. There's a pure-Rust one too
 cargo build --release -p phantom-daemon --no-default-features --features alacritty
 ```
 
-Same for the library — `phantom-test = { version = "0.2", default-features = false, features = ["alacritty"] }`. It's built on `alacritty_terminal` and passes the same test suite; libghostty-vt is still the more faithful emulator, so prefer it when you can build it.
+Same for the library — `phantom-test = { version = "0.3", default-features = false, features = ["alacritty"] }`. It's built on `alacritty_terminal` and passes the same test suite; libghostty-vt is still the more faithful emulator, so prefer it when you can build it.
 
 ## CLI
 

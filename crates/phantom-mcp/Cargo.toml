@@ -22,8 +22,8 @@ alacritty = ["phantom-daemon/alacritty", "phantom-test/alacritty"]
 
 [dependencies]
 phantom-core = { workspace = true, features = ["render"] }
-phantom-daemon = { path = "../phantom-daemon", version = "0.2.0", default-features = false }
-phantom-test = { path = "../phantom-test", version = "0.2.0", default-features = false }
+phantom-daemon = { path = "../phantom-daemon", version = "0.3.0", default-features = false }
+phantom-test = { path = "../phantom-test", version = "0.3.0", default-features = false }
 crossbeam-channel.workspace = true
 mio.workspace = true
 regex.workspace = true
