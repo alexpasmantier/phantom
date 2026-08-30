@@ -286,12 +286,30 @@ impl TerminalBackend for AlacrittyBackend {
 
     fn encode_mouse(&mut self, spec: &MouseSpec) -> Result<Vec<u8>> {
         let mode = self.term.mode();
-        if !mode.intersects(TermMode::MOUSE_MODE) {
+
+        // Same reporting rules as ghostty: normal mode (1000) never reports
+        // motion, button mode (1002) only reports motion while a button is
+        // held, any-motion mode (1003) reports everything.
+        let report = if mode.contains(TermMode::MOUSE_MOTION) {
+            true
+        } else if mode.contains(TermMode::MOUSE_DRAG) {
+            spec.button.is_some()
+        } else if mode.contains(TermMode::MOUSE_REPORT_CLICK) {
+            spec.action != MouseAction::Motion
+        } else {
+            false
+        };
+        if !report {
             return Ok(Vec::new());
         }
 
-        let mut code = match spec.button {
-            Some(MouseButton::Left) | None => 0,
+        let sgr = mode.contains(TermMode::SGR_MOUSE);
+        let mut code: u32 = match spec.button {
+            // No button means motion with nothing pressed.
+            None => 3,
+            // Legacy encodings can't say which button was released.
+            Some(_) if spec.action == MouseAction::Release && !sgr => 3,
+            Some(MouseButton::Left) => 0,
             Some(MouseButton::Middle) => 1,
             Some(MouseButton::Right) => 2,
             Some(MouseButton::ScrollUp) => 64,
@@ -305,7 +323,7 @@ impl TerminalBackend for AlacrittyBackend {
         let x = spec.x.max(0.0) as u32 + 1;
         let y = spec.y.max(0.0) as u32 + 1;
 
-        if mode.contains(TermMode::SGR_MOUSE) {
+        if sgr {
             let final_byte = if spec.action == MouseAction::Release {
                 'm'
             } else {
@@ -314,25 +332,26 @@ impl TerminalBackend for AlacrittyBackend {
             return Ok(format!("\x1b[<{code};{x};{y}{final_byte}").into_bytes());
         }
 
-        // Legacy X10 encoding: release is reported as button 3, and each field
-        // is a single byte offset by 32, so anything past column 223 is
-        // unrepresentable.
-        let button = if spec.action == MouseAction::Release {
-            3
+        let mut out = vec![0x1b, b'[', b'M', (32 + code) as u8];
+        if mode.contains(TermMode::UTF8_MOUSE) {
+            // Mode 1005: each coordinate is a UTF-8 encoded code point.
+            let mut buf = [0u8; 4];
+            for v in [x, y] {
+                let Some(ch) = char::from_u32(32 + v) else {
+                    return Ok(Vec::new());
+                };
+                out.extend_from_slice(ch.encode_utf8(&mut buf).as_bytes());
+            }
         } else {
-            code
-        };
-        if button > 223 || x > 223 || y > 223 {
-            return Ok(Vec::new());
+            // Plain X10: single bytes, so anything past column 223 is
+            // unrepresentable.
+            if x > 223 || y > 223 {
+                return Ok(Vec::new());
+            }
+            out.push((32 + x) as u8);
+            out.push((32 + y) as u8);
         }
-        Ok(vec![
-            0x1b,
-            b'[',
-            b'M',
-            32 + button as u8,
-            32 + x as u8,
-            32 + y as u8,
-        ])
+        Ok(out)
     }
 
     fn bracketed_paste_enabled(&self) -> bool {
@@ -469,4 +488,79 @@ fn to_termwiz_key(key: Key) -> Result<KeyCode> {
         }
     };
     Ok(k)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn backend(modes: &str) -> AlacrittyBackend {
+        let mut term = AlacrittyBackend::new(80, 24, 0).unwrap();
+        term.feed(modes.as_bytes());
+        term
+    }
+
+    fn mouse(action: MouseAction, button: Option<MouseButton>, x: f32, y: f32) -> MouseSpec {
+        MouseSpec {
+            action,
+            button,
+            x,
+            y,
+        }
+    }
+
+    #[test]
+    fn no_mouse_mode_reports_nothing() {
+        let mut term = backend("");
+        let press = mouse(MouseAction::Press, Some(MouseButton::Left), 0.0, 0.0);
+        assert!(term.encode_mouse(&press).unwrap().is_empty());
+    }
+
+    #[test]
+    fn sgr_click_reports_press_and_release() {
+        let mut term = backend("\x1b[?1000h\x1b[?1006h");
+        let press = mouse(MouseAction::Press, Some(MouseButton::Left), 9.0, 4.0);
+        let release = mouse(MouseAction::Release, Some(MouseButton::Left), 9.0, 4.0);
+        assert_eq!(term.encode_mouse(&press).unwrap(), b"\x1b[<0;10;5M");
+        assert_eq!(term.encode_mouse(&release).unwrap(), b"\x1b[<0;10;5m");
+    }
+
+    #[test]
+    fn x10_release_is_always_button_3() {
+        let mut term = backend("\x1b[?1000h");
+        let press = mouse(MouseAction::Press, Some(MouseButton::Right), 9.0, 4.0);
+        let release = mouse(MouseAction::Release, Some(MouseButton::Right), 9.0, 4.0);
+        assert_eq!(term.encode_mouse(&press).unwrap(), b"\x1b[M\"*%");
+        assert_eq!(term.encode_mouse(&release).unwrap(), b"\x1b[M#*%");
+    }
+
+    #[test]
+    fn utf8_mouse_encodes_wide_coordinates_as_code_points() {
+        let mut term = backend("\x1b[?1000h\x1b[?1005h");
+        // Column 200 -> code point 232 (U+00E8), two bytes in UTF-8.
+        let press = mouse(MouseAction::Press, Some(MouseButton::Left), 199.0, 0.0);
+        assert_eq!(
+            term.encode_mouse(&press).unwrap(),
+            [0x1b, b'[', b'M', 32, 0xc3, 0xa8, 33]
+        );
+    }
+
+    #[test]
+    fn motion_is_gated_by_the_tracking_mode() {
+        let motion = mouse(MouseAction::Motion, None, 0.0, 0.0);
+
+        // Normal mode: presses only.
+        let mut term = backend("\x1b[?1000h\x1b[?1006h");
+        assert!(term.encode_mouse(&motion).unwrap().is_empty());
+
+        // Button mode: motion needs a button held.
+        let mut term = backend("\x1b[?1002h\x1b[?1006h");
+        assert!(term.encode_mouse(&motion).unwrap().is_empty());
+        let drag = mouse(MouseAction::Motion, Some(MouseButton::Left), 0.0, 0.0);
+        assert_eq!(term.encode_mouse(&drag).unwrap(), b"\x1b[<32;1;1M");
+
+        // Any-motion mode: reported with the "no button" code.
+        let mut term = backend("\x1b[?1003h\x1b[?1006h");
+        assert_eq!(term.encode_mouse(&motion).unwrap(), b"\x1b[<35;1;1M");
+    }
 }
