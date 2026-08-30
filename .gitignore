@@ -1,6 +1,7 @@
 /target
 .fastembed_cache/
 *.sw?
+.sv?
 CLAUDE.md
 
 # OS
