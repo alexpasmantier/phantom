@@ -1,8 +1,9 @@
 //! [`TerminalBackend`] implementation on top of `alacritty_terminal`.
 //!
 //! Pure Rust, so it builds without a Zig toolchain. `alacritty_terminal` has
-//! no key encoder of its own, so key encoding comes from `termwiz`, driven by
-//! the modes alacritty tracks. Mouse reports are encoded here directly.
+//! no key encoder of its own: legacy key encoding comes from `termwiz`, driven
+//! by the modes alacritty tracks, while the kitty keyboard protocol and mouse
+//! reports are encoded here directly.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -117,6 +118,7 @@ impl TerminalBackend for AlacrittyBackend {
 
         let config = Config {
             scrolling_history: scrollback as usize,
+            kitty_keyboard: true,
             ..Default::default()
         };
         let size = TermSize {
@@ -266,10 +268,13 @@ impl TerminalBackend for AlacrittyBackend {
     }
 
     fn encode_key(&mut self, spec: &KeySpec) -> Result<Vec<u8>> {
+        let mode = self.term.mode();
+        if mode.intersects(TermMode::KITTY_KEYBOARD_PROTOCOL) {
+            return encode_kitty(spec, *mode);
+        }
+
         let key = to_termwiz_key(spec.key)?;
         let mods = to_termwiz_mods(spec.mods);
-        let mode = self.term.mode();
-
         let modes = KeyCodeEncodeModes {
             encoding: KeyboardEncoding::Xterm,
             application_cursor_keys: mode.contains(TermMode::APP_CURSOR),
@@ -456,6 +461,99 @@ fn default_color(index: usize) -> Rgb {
     }
 }
 
+/// Kitty keyboard protocol encoding of a key press. Follows ghostty's encoder
+/// so both backends hand the child the same bytes; in particular, the press
+/// event type is written out for the `CSI 1;mods:1 X` keys but omitted for
+/// `CSI code u` / `CSI code ~` ones, like ghostty does.
+fn encode_kitty(spec: &KeySpec, mode: TermMode) -> Result<Vec<u8>> {
+    let report_all = mode.contains(TermMode::REPORT_ALL_KEYS_AS_ESC);
+    let report_events = mode.contains(TermMode::REPORT_EVENT_TYPES);
+    let report_text = mode.contains(TermMode::REPORT_ASSOCIATED_TEXT);
+    let mods = spec.mods;
+
+    let (code, final_byte) = match spec.key {
+        Key::Char(c) => (c as u32, b'u'),
+        Key::Space => (32, b'u'),
+        Key::Escape => (27, b'u'),
+        Key::Enter => (13, b'u'),
+        Key::Tab => (9, b'u'),
+        Key::Backspace => (127, b'u'),
+        Key::Insert => (2, b'~'),
+        Key::Delete => (3, b'~'),
+        Key::PageUp => (5, b'~'),
+        Key::PageDown => (6, b'~'),
+        Key::Up => (1, b'A'),
+        Key::Down => (1, b'B'),
+        Key::Right => (1, b'C'),
+        Key::Left => (1, b'D'),
+        Key::Home => (1, b'H'),
+        Key::End => (1, b'F'),
+        Key::F(n) => match n {
+            1 => (1, b'P'),
+            2 => (1, b'Q'),
+            3 => (13, b'~'),
+            4 => (1, b'S'),
+            5 => (15, b'~'),
+            6 => (17, b'~'),
+            7 => (18, b'~'),
+            8 => (19, b'~'),
+            9 => (20, b'~'),
+            10 => (21, b'~'),
+            11 => (23, b'~'),
+            12 => (24, b'~'),
+            _ => bail!("Unknown key: f{n}"),
+        },
+    };
+
+    // The text an unmodified press produces, if any.
+    let text = match spec.key {
+        Key::Char(c) if !c.is_control() => Some(c),
+        Key::Space => Some(' '),
+        _ => None,
+    };
+
+    // Unless every key is reported as an escape code, unmodified text keys
+    // stay text and enter/tab/backspace keep their legacy bytes so a shell
+    // stays usable if a program dies with the mode still on.
+    if !report_all && mods.is_empty() {
+        match spec.key {
+            Key::Enter => return Ok(b"\r".to_vec()),
+            Key::Tab => return Ok(b"\t".to_vec()),
+            Key::Backspace => return Ok(b"\x7f".to_vec()),
+            _ => {}
+        }
+        if let Some(c) = text {
+            return Ok(c.to_string().into_bytes());
+        }
+    }
+
+    let mods_int = 1
+        + u32::from(mods.shift)
+        + 2 * u32::from(mods.alt)
+        + 4 * u32::from(mods.ctrl)
+        + 8 * u32::from(mods.super_key);
+
+    let mut out = String::from("\x1b[");
+    if final_byte == b'u' || final_byte == b'~' {
+        out.push_str(&code.to_string());
+        if mods_int > 1 {
+            out.push_str(&format!(";{mods_int}"));
+        }
+        if report_text
+            && mods.is_empty()
+            && let Some(c) = text
+        {
+            out.push_str(&format!(";;{}", c as u32));
+        }
+    } else if report_events {
+        out.push_str(&format!("1;{mods_int}:1"));
+    } else if mods_int > 1 {
+        out.push_str(&format!("1;{mods_int}"));
+    }
+    out.push(final_byte as char);
+    Ok(out.into_bytes())
+}
+
 fn to_termwiz_mods(mods: Mods) -> Modifiers {
     let mut out = Modifiers::NONE;
     if mods.ctrl {
@@ -518,6 +616,78 @@ mod tests {
             x,
             y,
         }
+    }
+
+    fn key(key: Key, mods: Mods) -> KeySpec {
+        KeySpec { key, mods }
+    }
+
+    const CTRL: Mods = Mods {
+        ctrl: true,
+        alt: false,
+        shift: false,
+        super_key: false,
+    };
+    const SHIFT: Mods = Mods {
+        ctrl: false,
+        alt: false,
+        shift: true,
+        super_key: false,
+    };
+
+    #[test]
+    fn kitty_query_is_answered() {
+        let mut term = AlacrittyBackend::new(80, 24, 0).unwrap();
+        assert_eq!(term.feed(b"\x1b[>1u\x1b[?u"), b"\x1b[?1u");
+    }
+
+    #[test]
+    fn kitty_disambiguate_mode() {
+        let mut term = backend("\x1b[>1u");
+        let none = Mods::default();
+        assert_eq!(
+            term.encode_key(&key(Key::Escape, none)).unwrap(),
+            b"\x1b[27u"
+        );
+        assert_eq!(term.encode_key(&key(Key::Char('a'), none)).unwrap(), b"a");
+        assert_eq!(term.encode_key(&key(Key::Enter, none)).unwrap(), b"\r");
+        assert_eq!(term.encode_key(&key(Key::Up, none)).unwrap(), b"\x1b[A");
+        assert_eq!(
+            term.encode_key(&key(Key::Char('c'), CTRL)).unwrap(),
+            b"\x1b[99;5u"
+        );
+        assert_eq!(term.encode_key(&key(Key::Up, SHIFT)).unwrap(), b"\x1b[1;2A");
+        assert_eq!(
+            term.encode_key(&key(Key::Tab, SHIFT)).unwrap(),
+            b"\x1b[9;2u"
+        );
+
+        // Popping the mode restores legacy encoding.
+        term.feed(b"\x1b[<u");
+        assert_eq!(term.encode_key(&key(Key::Escape, none)).unwrap(), b"\x1b");
+    }
+
+    #[test]
+    fn kitty_report_all_events_and_text() {
+        // disambiguate | report events | report all | report associated text
+        let mut term = backend("\x1b[>27u");
+        let none = Mods::default();
+        assert_eq!(
+            term.encode_key(&key(Key::Char('a'), none)).unwrap(),
+            b"\x1b[97;;97u"
+        );
+        assert_eq!(
+            term.encode_key(&key(Key::Enter, none)).unwrap(),
+            b"\x1b[13u"
+        );
+        assert_eq!(
+            term.encode_key(&key(Key::Up, none)).unwrap(),
+            b"\x1b[1;1:1A"
+        );
+        assert_eq!(
+            term.encode_key(&key(Key::Char('c'), CTRL)).unwrap(),
+            b"\x1b[99;5u"
+        );
     }
 
     #[test]
