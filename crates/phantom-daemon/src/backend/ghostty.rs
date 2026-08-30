@@ -280,11 +280,17 @@ impl TerminalBackend for GhosttyBackend {
         let mut event = key::Event::new()?;
         event.set_key(key).set_mods(mods).set_action(Action::Press);
 
-        // Set UTF-8 codepoint for character keys without modifiers
-        if mods.is_empty()
-            && let Some(ch) = key_to_char(key)
-        {
-            event.set_utf8(Some(ch.to_string()));
+        if let Some(ch) = key_to_char(key) {
+            // The unshifted codepoint is what the kitty encoder keys off to
+            // build `CSI code u` sequences; without it, modified keys (ctrl+c
+            // and friends) encode to nothing under the kitty protocol.
+            event.set_unshifted_codepoint(ch);
+            // UTF-8 text stands in for the produced character, but only for an
+            // unmodified press — a modifier means the child wants the encoded
+            // sequence, not the raw byte.
+            if mods.is_empty() {
+                event.set_utf8(Some(ch.to_string()));
+            }
         }
 
         let mut buf = Vec::new();
@@ -470,5 +476,43 @@ fn key_to_char(key: GKey) -> Option<char> {
         GKey::Enter => Some('\r'),
         GKey::Tab => Some('\t'),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn key(key: Key, mods: Mods) -> KeySpec {
+        KeySpec { key, mods }
+    }
+
+    /// The alacritty backend has the mirror of this test; the expected bytes
+    /// must stay identical so children see the same input on both backends.
+    #[test]
+    fn kitty_encoding_matches_the_alacritty_backend() {
+        let none = Mods::default();
+        let ctrl = Mods {
+            ctrl: true,
+            ..Default::default()
+        };
+
+        let mut t = GhosttyBackend::new(80, 24, 0).unwrap();
+        t.feed(b"\x1b[>1u");
+        assert_eq!(t.encode_key(&key(Key::Escape, none)).unwrap(), b"\x1b[27u");
+        assert_eq!(t.encode_key(&key(Key::Char('a'), none)).unwrap(), b"a");
+        assert_eq!(
+            t.encode_key(&key(Key::Char('c'), ctrl)).unwrap(),
+            b"\x1b[99;5u"
+        );
+
+        let mut t = GhosttyBackend::new(80, 24, 0).unwrap();
+        t.feed(b"\x1b[>27u");
+        assert_eq!(
+            t.encode_key(&key(Key::Char('a'), none)).unwrap(),
+            b"\x1b[97;;97u"
+        );
+        assert_eq!(t.encode_key(&key(Key::Enter, none)).unwrap(), b"\x1b[13u");
+        assert_eq!(t.encode_key(&key(Key::Up, none)).unwrap(), b"\x1b[1;1:1A");
     }
 }
