@@ -89,4 +89,11 @@ jobs:
         run: cargo clippy -p phantom-daemon --no-default-features --features alacritty --all-targets -- -D warnings
 
       - name: Run tests
-        run: cargo test -p phantom-daemon --no-default-features --features alacritty -- --test-threads=1
+        run: |
+          cargo test -p phantom-daemon --no-default-features --features alacritty -- --test-threads=1
+          cargo test -p phantom-test --no-default-features --features alacritty -- --test-threads=1
+
+      # phantom-mcp has no alacritty-only tests worth running twice; compiling
+      # it (tests included) is what this backend needs to guarantee.
+      - name: Check phantom-mcp
+        run: cargo check -p phantom-mcp --no-default-features --features alacritty --all-targets
